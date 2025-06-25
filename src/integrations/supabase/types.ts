@@ -9,7 +9,80 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          creator_wallet: string
+          id: string
+          opponent_wallet: string | null
+          started_at: string | null
+          status: string | null
+          wager: number
+          winner_wallet: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          creator_wallet: string
+          id?: string
+          opponent_wallet?: string | null
+          started_at?: string | null
+          status?: string | null
+          wager: number
+          winner_wallet?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          creator_wallet?: string
+          id?: string
+          opponent_wallet?: string | null
+          started_at?: string | null
+          status?: string | null
+          wager?: number
+          winner_wallet?: string | null
+        }
+        Relationships: []
+      }
+      tap_results: {
+        Row: {
+          id: string
+          match_id: string | null
+          score: number
+          signature: string
+          submitted_at: string | null
+          timestamp: string
+          wallet_address: string
+        }
+        Insert: {
+          id?: string
+          match_id?: string | null
+          score: number
+          signature: string
+          submitted_at?: string | null
+          timestamp: string
+          wallet_address: string
+        }
+        Update: {
+          id?: string
+          match_id?: string | null
+          score?: number
+          signature?: string
+          submitted_at?: string | null
+          timestamp?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tap_results_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

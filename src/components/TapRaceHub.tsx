@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Target, Users, Zap, Trophy, Timer, Coins, Play, Crown, Sparkles } from 'lucide-react';
+import CreateBattleForm from './CreateBattleForm';
+import ActiveMatches from './ActiveMatches';
+import { useState } from 'react';
 
 interface TapRaceHubProps {
   onCreateMatch: () => void;
@@ -17,12 +20,20 @@ interface TapRaceHubProps {
 }
 
 const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats }: TapRaceHubProps) => {
-  // Mock active matches data
-  const activeMatches = [
-    { id: 1, wager: 10, creator: "Player1", waitingTime: "2m" },
-    { id: 2, wager: 25, creator: "TapMaster", waitingTime: "5m" },
-    { id: 3, wager: 50, creator: "SpeedDemon", waitingTime: "1m" }
-  ];
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  // Mock wallet address - in real app this would come from wallet connection
+  const walletAddress = 'GorBMockWallet123456789';
+
+  const handleBattleCreated = (matchId: string) => {
+    console.log('Battle created with ID:', matchId);
+    setShowCreateForm(false);
+    onCreateMatch();
+  };
+
+  const handleJoinMatch = (matchId: string) => {
+    console.log('Joining match:', matchId);
+    onJoinMatch();
+  };
 
   return (
     <div className="space-y-12">
@@ -112,10 +123,10 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
             
             <Button 
               className="w-full text-lg font-bold py-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 hover:shadow-xl hover:shadow-purple-500/30 transform hover:scale-[1.02] transition-all duration-300"
-              onClick={onCreateMatch}
+              onClick={() => setShowCreateForm(!showCreateForm)}
             >
               <Play className="w-5 h-5 mr-3" />
-              🎮 CREATE BATTLE!
+              {showCreateForm ? 'Hide Form' : '🎮 CREATE BATTLE!'}
             </Button>
           </CardContent>
         </Card>
@@ -160,50 +171,19 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
         </Card>
       </div>
 
+      {/* Create Battle Form */}
+      {showCreateForm && (
+        <CreateBattleForm 
+          walletAddress={walletAddress}
+          onBattleCreated={handleBattleCreated}
+        />
+      )}
+
       {/* Active Matches */}
-      <Card className="bg-gradient-to-r from-slate-800/60 to-slate-900/60 border-slate-600/30 backdrop-blur-xl shadow-2xl shadow-slate-900/50">
-        <CardHeader>
-          <CardTitle className="text-2xl text-slate-200 flex items-center">
-            <Target className="w-6 h-6 mr-3 text-purple-400" />
-            Active Battles
-            <Badge className="ml-3 bg-gradient-to-r from-emerald-600 to-teal-600">
-              {activeMatches.length} Live
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {activeMatches.map((match) => (
-              <div 
-                key={match.id}
-                className="flex items-center justify-between bg-slate-700/40 border border-slate-600/30 rounded-lg p-4 hover:bg-slate-700/60 transition-all duration-300"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-                    <Target className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-slate-200 font-semibold">{match.creator}</div>
-                    <div className="text-sm text-slate-400">Waiting for {match.waitingTime}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold">
-                    {match.wager} GORB
-                  </Badge>
-                  <Button 
-                    size="sm"
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                    onClick={onJoinMatch}
-                  >
-                    Join Battle
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <ActiveMatches 
+        walletAddress={walletAddress}
+        onJoinMatch={handleJoinMatch}
+      />
 
       {/* Leaderboard Preview */}
       <div className="text-center bg-gradient-to-r from-slate-800/60 to-slate-900/60 border border-slate-600/30 rounded-3xl p-8 backdrop-blur-xl shadow-2xl shadow-slate-900/50">
