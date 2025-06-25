@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Target, Users, Coins, ArrowLeft, Play, Copy, Check, Clock } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
+import { useWalletAddress } from '@/hooks/useWalletAddress';
 import { supabase } from '@/integrations/supabase/client';
 import RealTimeGame from '@/components/RealTimeGame';
 
@@ -20,9 +20,19 @@ const MatchPage = () => {
   const [linkCopied, setLinkCopied] = useState(false);
   const { getMatch, joinMatch } = useMatches();
   const { toast } = useToast();
-  
-  // Mock wallet address - in real app this would come from wallet connection
-  const walletAddress = 'GorBMockWallet123456789';
+  const { walletAddress, isConnected } = useWalletAddress();
+
+  // Redirect to home if wallet is not connected
+  useEffect(() => {
+    if (!isConnected) {
+      navigate('/');
+      toast({
+        title: "⚠️ Wallet Required",
+        description: "Please connect your wallet to join matches",
+        variant: "destructive"
+      });
+    }
+  }, [isConnected, navigate, toast]);
 
   useEffect(() => {
     const loadMatch = async () => {
@@ -91,7 +101,7 @@ const MatchPage = () => {
   }, [matchId, gameStarted]);
 
   const handleJoinMatch = async () => {
-    if (!matchId || !match) return;
+    if (!matchId || !match || !walletAddress) return;
 
     try {
       await joinMatch(matchId, walletAddress);
@@ -173,7 +183,7 @@ const MatchPage = () => {
           
           <RealTimeGame 
             matchId={matchId!}
-            walletAddress={walletAddress}
+            walletAddress={walletAddress!}
             onGameComplete={handleGameComplete}
           />
         </div>
@@ -182,10 +192,10 @@ const MatchPage = () => {
   }
 
   // Show lobby/waiting room
-  const isCreator = match.creator_wallet === walletAddress;
-  const canJoin = !hasJoined && !isCreator && match.status === 'waiting' && !match.opponent_wallet;
-  const isWaitingForOpponent = match.status === 'waiting' && !match.opponent_wallet;
-  const bothPlayersReady = match.opponent_wallet && match.status === 'waiting';
+  const isCreator = match?.creator_wallet === walletAddress;
+  const canJoin = !hasJoined && !isCreator && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
+  const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
+  const bothPlayersReady = match?.opponent_wallet && match?.status === 'waiting';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">

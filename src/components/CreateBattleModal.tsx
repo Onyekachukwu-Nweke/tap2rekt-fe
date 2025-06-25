@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,24 +8,32 @@ import { Coins, Target, Zap, Users } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { useWalletAddress } from '@/hooks/useWalletAddress';
 
 interface CreateBattleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  walletAddress: string;
   onBattleCreated?: (matchId: string) => void;
 }
 
-const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: CreateBattleModalProps) => {
+const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleModalProps) => {
   const [wager, setWager] = useState(10);
   const [gameMode, setGameMode] = useState<'quick' | 'private'>('quick');
   const [isCreating, setIsCreating] = useState(false);
   const { createMatch } = useMatches();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { walletAddress, isConnected } = useWalletAddress();
 
   const handleCreateBattle = async () => {
-    if (!walletAddress) return;
+    if (!walletAddress || !isConnected) {
+      toast({
+        title: "⚠️ Wallet Required",
+        description: "Please connect your wallet first",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsCreating(true);
     try {
@@ -126,11 +133,17 @@ const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: 
 
           <Button 
             onClick={handleCreateBattle}
-            disabled={isCreating || !walletAddress || wager < 1}
+            disabled={isCreating || !isConnected || wager < 1}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold py-3"
           >
             {isCreating ? 'Creating Battle...' : `🎮 Create ${gameMode === 'quick' ? 'Quick' : 'Private'} Battle (${wager} GORB)`}
           </Button>
+
+          {!isConnected && (
+            <div className="text-center text-amber-400 text-sm">
+              ⚠️ Connect your wallet to create battles
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

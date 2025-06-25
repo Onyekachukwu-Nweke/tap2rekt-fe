@@ -1,36 +1,43 @@
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wallet, Copy, LogOut, Sparkles, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Copy, LogOut, Sparkles, Zap, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 
 const WalletConnection = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
+  const { connected, publicKey, disconnect, wallet } = useWallet();
   const [gorbBalance, setGorbBalance] = useState(1250);
   const { toast } = useToast();
 
-  // Mock wallet connection - in real app this would integrate with Solana wallet adapter
-  const connectWallet = async () => {
-    // Simulate wallet connection
-    setTimeout(() => {
-      const mockAddress = 'GorB' + Math.random().toString(36).substring(2, 15);
-      setWalletAddress(mockAddress);
-      setIsConnected(true);
+  // Mock balance - in real app you'd fetch from your token program
+  useEffect(() => {
+    if (connected) {
+      // Simulate fetching GORB balance
       setGorbBalance(Math.floor(Math.random() * 2000) + 500);
       
       toast({
         title: "🎉 Wallet Connected!",
-        description: "Ready to dominate on Gorbagana testnet! 🚀",
+        description: `Connected to ${wallet?.adapter.name || 'wallet'} on Solana devnet! 🚀`,
       });
-    }, 1000);
+    }
+  }, [connected, wallet, toast]);
+
+  const copyAddress = () => {
+    if (publicKey) {
+      navigator.clipboard.writeText(publicKey.toBase58());
+      toast({
+        title: "📋 Address Copied!",
+        description: "Wallet address copied to clipboard ✨",
+      });
+    }
   };
 
-  const disconnectWallet = () => {
-    setIsConnected(false);
-    setWalletAddress('');
+  const handleDisconnect = () => {
+    disconnect();
     setGorbBalance(0);
     
     toast({
@@ -39,23 +46,11 @@ const WalletConnection = () => {
     });
   };
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText(walletAddress);
-    toast({
-      title: "📋 Address Copied!",
-      description: "Wallet address copied to clipboard ✨",
-    });
-  };
-
-  if (!isConnected) {
+  if (!connected) {
     return (
-      <Button 
-        onClick={connectWallet}
-        className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-3 px-6 rounded-xl shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transform hover:scale-105 transition-all duration-300 border border-blue-500/30"
-      >
-        <Wallet className="w-5 h-5 mr-2" />
-        🚀 Connect Wallet
-      </Button>
+      <div className="wallet-connection">
+        <WalletMultiButton className="!bg-gradient-to-r !from-blue-600 !to-indigo-700 hover:!from-blue-700 hover:!to-indigo-800 !text-white !font-bold !py-3 !px-6 !rounded-xl !shadow-xl !shadow-blue-500/30 hover:!shadow-blue-500/50 !transform hover:!scale-105 !transition-all !duration-300 !border !border-blue-500/30" />
+      </div>
     );
   }
 
@@ -86,10 +81,10 @@ const WalletConnection = () => {
             
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-slate-400">
-                🌟 Gorbagana Testnet
+                🌟 {wallet?.adapter.name || 'Solana'} - Devnet
               </div>
               <div className="text-sm font-mono font-bold text-slate-200 truncate">
-                {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+                {publicKey ? `${publicKey.toBase58().slice(0, 8)}...${publicKey.toBase58().slice(-6)}` : ''}
               </div>
             </div>
             
@@ -106,7 +101,7 @@ const WalletConnection = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={disconnectWallet}
+                onClick={handleDisconnect}
                 className="h-10 w-10 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/30 rounded-lg transition-all duration-300 hover:scale-110"
               >
                 <LogOut className="w-4 h-4" />
