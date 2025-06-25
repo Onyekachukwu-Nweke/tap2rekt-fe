@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, Coins, ArrowLeft, Play, Copy, Check } from 'lucide-react';
+import { Target, Users, Coins, ArrowLeft, Play, Copy, Check, Clock } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +39,8 @@ const MatchPage = () => {
           
           if (isPlayerInMatch) {
             setHasJoined(true);
-            if (matchData.status === 'in_progress') {
+            // Only start the game if status is 'in_progress' AND both players are present
+            if (matchData.status === 'in_progress' && matchData.opponent_wallet) {
               setGameStarted(true);
             }
           }
@@ -72,7 +73,8 @@ const MatchPage = () => {
           const updatedMatch = payload.new;
           setMatch(updatedMatch);
           
-          if (updatedMatch.status === 'in_progress' && !gameStarted) {
+          // Start game only when status is 'in_progress' AND both players are present
+          if (updatedMatch.status === 'in_progress' && updatedMatch.opponent_wallet && !gameStarted) {
             setGameStarted(true);
             toast({
               title: "⚡ Game Starting!",
@@ -96,7 +98,7 @@ const MatchPage = () => {
       setHasJoined(true);
       toast({
         title: "✅ Joined Battle!",
-        description: "Waiting for game to start...",
+        description: "Game will start shortly...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -125,7 +127,7 @@ const MatchPage = () => {
 
   const handleGameComplete = () => {
     console.log('Game completed!');
-    // Stay on this page to show results
+    setGameStarted(false);
   };
 
   if (loading) {
@@ -153,7 +155,8 @@ const MatchPage = () => {
     );
   }
 
-  if (gameStarted) {
+  // Show the game interface only when both players are ready and game has started
+  if (gameStarted && match.status === 'in_progress' && match.opponent_wallet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-8">
@@ -178,9 +181,11 @@ const MatchPage = () => {
     );
   }
 
+  // Show lobby/waiting room
   const isCreator = match.creator_wallet === walletAddress;
   const canJoin = !hasJoined && !isCreator && match.status === 'waiting' && !match.opponent_wallet;
   const isWaitingForOpponent = match.status === 'waiting' && !match.opponent_wallet;
+  const bothPlayersReady = match.opponent_wallet && match.status === 'waiting';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -206,13 +211,31 @@ const MatchPage = () => {
         </div>
 
         <div className="max-w-2xl mx-auto">
+          {/* Battle Lobby Header */}
+          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl mb-6">
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl text-slate-100 flex items-center justify-center mb-4">
+                <Target className="w-8 h-8 mr-3 text-purple-400" />
+                Battle Lobby
+                {match.is_quick_game && <Badge className="ml-3 bg-amber-600">Quick Game</Badge>}
+              </CardTitle>
+              <div className="flex items-center justify-center space-x-2">
+                <Clock className="w-5 h-5 text-slate-400" />
+                <span className="text-slate-300">
+                  {isWaitingForOpponent ? 'Waiting for opponent...' : 
+                   bothPlayersReady ? 'Starting soon...' : 'Ready to battle!'}
+                </span>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Match Details */}
           <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl">
             <CardHeader>
               <CardTitle className="text-2xl text-slate-100 flex items-center justify-between">
                 <div className="flex items-center">
                   <Target className="w-7 h-7 mr-3 text-purple-400" />
                   Tap Race Battle
-                  {match.is_quick_game && <Badge className="ml-3 bg-amber-600">Quick Game</Badge>}
                 </div>
                 <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
                   {match.wager * 2} GORB Prize
@@ -220,7 +243,7 @@ const MatchPage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Match Details */}
+              {/* Players */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
                   <div className="text-sm text-slate-400 mb-1">Creator</div>
@@ -294,7 +317,8 @@ const MatchPage = () => {
                     <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
                       {window.location.href}
                     </div>
-                    <div className="text-amber-400 text-sm">
+                    <div className="text-amber-400 text-sm flex items-center justify-center">
+                      <Clock className="w-4 h-4 mr-2" />
                       ⏳ Waiting for opponent to join...
                     </div>
                   </div>
@@ -303,14 +327,20 @@ const MatchPage = () => {
                 {hasJoined && isWaitingForOpponent && !isCreator && (
                   <div className="text-center">
                     <div className="text-lg text-emerald-400 mb-2">✅ You've joined this battle!</div>
-                    <div className="text-slate-400">Waiting for the creator to start the game...</div>
+                    <div className="text-slate-400 flex items-center justify-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Waiting for the game to start...
+                    </div>
                   </div>
                 )}
 
-                {match.opponent_wallet && match.status === 'waiting' && (
+                {bothPlayersReady && (
                   <div className="text-center">
                     <div className="text-lg text-emerald-400 mb-2">🎮 Both players ready!</div>
-                    <div className="text-slate-400">Game will start automatically...</div>
+                    <div className="text-slate-400 flex items-center justify-center">
+                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      Starting battle...
+                    </div>
                   </div>
                 )}
               </div>
