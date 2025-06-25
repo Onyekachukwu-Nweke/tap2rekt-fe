@@ -242,7 +242,7 @@ const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: 
                 className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         )}
