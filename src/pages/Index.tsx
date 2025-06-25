@@ -49,7 +49,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-100 via-purple-100 to-indigo-200 bg-clip-text text-transparent">
-                Tap Race Arena
+                Tap 2 Rekt
               </h1>
               <p className="text-sm text-slate-400 font-medium">
                 🚀 Gorbagana Testnet • 1v1 Speed Battles • Winner Takes All ⚡
@@ -145,7 +145,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-8 text-center">
           <div className="mb-4">
             <p className="text-xl font-bold bg-gradient-to-r from-slate-200 to-purple-200 bg-clip-text text-transparent">
-              🎯 Tap Race Arena - Gorbagana Testnet 🎯
+              🎯 Tap 2 Rekt - Gorbagana Testnet 🎯
             </p>
             <p className="text-lg bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent font-semibold">
               ⚡ 1v1 Speed Battles • Winner Takes All ⚡

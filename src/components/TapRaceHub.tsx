@@ -45,7 +45,7 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
         </div>
         <div className="relative">
           <h2 className="text-5xl font-bold bg-gradient-to-r from-slate-100 via-purple-200 to-indigo-200 bg-clip-text text-transparent mb-4">
-            🎯 Tap Race Arena 🎯
+            🎯 Tap 2 Rekt 🎯
           </h2>
           <div className="flex justify-center space-x-4 mb-6">
             <Target className="w-6 h-6 text-purple-400" />
