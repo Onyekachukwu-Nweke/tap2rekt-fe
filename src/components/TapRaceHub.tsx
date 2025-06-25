@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,13 +19,13 @@ interface TapRaceHubProps {
 }
 
 const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats }: TapRaceHubProps) => {
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   // Mock wallet address - in real app this would come from wallet connection
   const walletAddress = 'GorBMockWallet123456789';
 
   const handleBattleCreated = (matchId: string) => {
     console.log('Battle created with ID:', matchId);
-    setShowCreateForm(false);
+    setShowCreateModal(false);
     onCreateMatch();
   };
 
@@ -123,10 +122,10 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
             
             <Button 
               className="w-full text-lg font-bold py-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 hover:shadow-xl hover:shadow-purple-500/30 transform hover:scale-[1.02] transition-all duration-300"
-              onClick={() => setShowCreateForm(!showCreateForm)}
+              onClick={() => setShowCreateModal(true)}
             >
               <Play className="w-5 h-5 mr-3" />
-              {showCreateForm ? 'Hide Form' : '🎮 CREATE BATTLE!'}
+              🎮 CREATE BATTLE!
             </Button>
           </CardContent>
         </Card>
@@ -171,13 +170,13 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
         </Card>
       </div>
 
-      {/* Create Battle Form */}
-      {showCreateForm && (
-        <CreateBattleForm 
-          walletAddress={walletAddress}
-          onBattleCreated={handleBattleCreated}
-        />
-      )}
+      {/* Create Battle Modal */}
+      <CreateBattleModal 
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        walletAddress={walletAddress}
+        onBattleCreated={handleBattleCreated}
+      />
 
       {/* Active Matches */}
       <ActiveMatches 
