@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, Coins, ArrowLeft, Play } from 'lucide-react';
+import { Target, Users, Coins, ArrowLeft, Play, Copy, Check } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import RealTimeGame from '@/components/RealTimeGame';
 
 const MatchPage = () => {
@@ -15,7 +17,9 @@ const MatchPage = () => {
   const [loading, setLoading] = useState(true);
   const [hasJoined, setHasJoined] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const { getMatch, joinMatch } = useMatches();
+  const { toast } = useToast();
   
   // Mock wallet address - in real app this would come from wallet connection
   const walletAddress = 'GorBMockWallet123456789';
@@ -50,21 +54,78 @@ const MatchPage = () => {
     loadMatch();
   }, [matchId, getMatch, walletAddress]);
 
+  // Real-time subscription for match updates
+  useEffect(() => {
+    if (!matchId) return;
+
+    const channel = supabase
+      .channel(`match-${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'matches',
+          filter: `id=eq.${matchId}`
+        },
+        (payload) => {
+          const updatedMatch = payload.new;
+          setMatch(updatedMatch);
+          
+          if (updatedMatch.status === 'in_progress' && !gameStarted) {
+            setGameStarted(true);
+            toast({
+              title: "⚡ Game Starting!",
+              description: "Get ready to tap!",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [matchId, gameStarted]);
+
   const handleJoinMatch = async () => {
     if (!matchId || !match) return;
 
     try {
       await joinMatch(matchId, walletAddress);
       setHasJoined(true);
-      setGameStarted(true);
+      toast({
+        title: "✅ Joined Battle!",
+        description: "Waiting for game to start...",
+      });
     } catch (error) {
       console.error('Failed to join match:', error);
+      toast({
+        title: "❌ Failed to Join",
+        description: "Could not join the battle",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+      
+      toast({
+        title: "✅ Link Copied!",
+        description: "Share this link with others",
+      });
+    } catch (error) {
+      console.error('Failed to copy link:', error);
     }
   };
 
   const handleGameComplete = () => {
-    // Game completed, could redirect to results or show results component
     console.log('Game completed!');
+    // Stay on this page to show results
   };
 
   if (loading) {
@@ -119,11 +180,12 @@ const MatchPage = () => {
 
   const isCreator = match.creator_wallet === walletAddress;
   const canJoin = !hasJoined && !isCreator && match.status === 'waiting' && !match.opponent_wallet;
+  const isWaitingForOpponent = match.status === 'waiting' && !match.opponent_wallet;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <Button 
             variant="outline" 
             onClick={() => navigate('/')}
@@ -131,6 +193,15 @@ const MatchPage = () => {
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Hub
+          </Button>
+          
+          <Button 
+            variant="outline"
+            onClick={handleCopyLink}
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
+          >
+            {linkCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+            {linkCopied ? 'Copied!' : 'Copy Link'}
           </Button>
         </div>
 
@@ -141,6 +212,7 @@ const MatchPage = () => {
                 <div className="flex items-center">
                   <Target className="w-7 h-7 mr-3 text-purple-400" />
                   Tap Race Battle
+                  {match.is_quick_game && <Badge className="ml-3 bg-amber-600">Quick Game</Badge>}
                 </div>
                 <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
                   {match.wager * 2} GORB Prize
@@ -214,21 +286,31 @@ const MatchPage = () => {
                   </>
                 )}
 
-                {isCreator && match.status === 'waiting' && (
-                  <div className="text-center">
-                    <div className="text-lg text-slate-200 mb-4">
+                {isCreator && isWaitingForOpponent && (
+                  <div className="text-center space-y-4">
+                    <div className="text-lg text-slate-200 mb-2">
                       🔗 Share this link with your opponent:
                     </div>
                     <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
                       {window.location.href}
                     </div>
+                    <div className="text-amber-400 text-sm">
+                      ⏳ Waiting for opponent to join...
+                    </div>
                   </div>
                 )}
 
-                {hasJoined && match.status === 'waiting' && (
+                {hasJoined && isWaitingForOpponent && !isCreator && (
                   <div className="text-center">
                     <div className="text-lg text-emerald-400 mb-2">✅ You've joined this battle!</div>
-                    <div className="text-slate-400">Waiting for the game to start...</div>
+                    <div className="text-slate-400">Waiting for the creator to start the game...</div>
+                  </div>
+                )}
+
+                {match.opponent_wallet && match.status === 'waiting' && (
+                  <div className="text-center">
+                    <div className="text-lg text-emerald-400 mb-2">🎮 Both players ready!</div>
+                    <div className="text-slate-400">Game will start automatically...</div>
                   </div>
                 )}
               </div>

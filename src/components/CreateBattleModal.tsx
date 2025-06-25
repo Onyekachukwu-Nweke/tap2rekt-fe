@@ -56,17 +56,31 @@ const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: 
     }
   };
 
+  const getMatchLink = () => {
+    if (!createdMatch) return '';
+    return `${window.location.origin}/match/${createdMatch.id}`;
+  };
+
   const handleCopyLink = async () => {
-    if (createdMatch) {
-      const link = `${window.location.origin}/match/${createdMatch.id}`;
-      await navigator.clipboard.writeText(link);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-      
-      toast({
-        title: "Link Copied!",
-        description: "Share this link with your opponent",
-      });
+    const link = getMatchLink();
+    if (link) {
+      try {
+        await navigator.clipboard.writeText(link);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+        
+        toast({
+          title: "✅ Link Copied!",
+          description: "Share this link with your opponent",
+        });
+      } catch (error) {
+        console.error('Failed to copy link:', error);
+        toast({
+          title: "❌ Copy Failed",
+          description: "Please copy the link manually",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -76,6 +90,12 @@ const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: 
     setLinkCopied(false);
     setGameMode('quick');
     setWager(10);
+  };
+
+  const handleGoToMatch = () => {
+    if (createdMatch) {
+      window.location.href = `/match/${createdMatch.id}`;
+    }
   };
 
   return (
@@ -177,37 +197,53 @@ const CreateBattleModal = ({ isOpen, onClose, walletAddress, onBattleCreated }: 
                 </div>
               </div>
 
-              {gameMode === 'private' && (
-                <div className="space-y-3">
-                  <div className="text-sm text-slate-300">Share this link with your opponent:</div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
-                      {`${window.location.origin}/match/${createdMatch.id}`}
-                    </div>
-                    <Button
-                      onClick={handleCopyLink}
-                      size="sm"
-                      className="bg-slate-600 hover:bg-slate-500"
-                    >
-                      {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
+              {/* Always show the match link */}
+              <div className="space-y-3">
+                <div className="text-sm text-slate-300">
+                  {gameMode === 'private' ? 'Share this link with your opponent:' : 'Match Link:'}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
+                    {getMatchLink()}
                   </div>
+                  <Button
+                    onClick={handleCopyLink}
+                    size="sm"
+                    className="bg-slate-600 hover:bg-slate-500"
+                  >
+                    {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {gameMode === 'quick' && (
+                <div className="text-sm text-slate-400 bg-amber-900/20 border border-amber-600/30 rounded-lg p-3">
+                  🔍 Searching for opponent... You'll be notified when someone joins!
                 </div>
               )}
 
-              {gameMode === 'quick' && (
-                <div className="text-sm text-slate-400">
-                  🔍 Searching for opponent... You'll be notified when someone joins!
+              {gameMode === 'private' && (
+                <div className="text-sm text-slate-400 bg-indigo-900/20 border border-indigo-600/30 rounded-lg p-3">
+                  💡 Share the link above with your friend to start the battle!
                 </div>
               )}
             </div>
 
-            <Button 
-              onClick={handleClose}
-              className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-500 hover:to-slate-600 text-white"
-            >
-              Close
-            </Button>
+            <div className="flex space-x-3">
+              <Button 
+                onClick={handleGoToMatch}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+              >
+                Go to Match
+              </Button>
+              <Button 
+                onClick={handleClose}
+                variant="outline"
+                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
       </DialogContent>

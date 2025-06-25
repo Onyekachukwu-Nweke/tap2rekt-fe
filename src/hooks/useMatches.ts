@@ -68,9 +68,11 @@ export const useMatches = () => {
 
       if (error) throw error;
 
-      // If it's a quick game, try to auto-match with another quick game
+      // If it's a quick game, try to auto-match immediately
       if (isQuickGame) {
-        await tryAutoMatch(data.id, walletAddress);
+        setTimeout(() => {
+          tryAutoMatch(data.id, walletAddress);
+        }, 1000); // Small delay to allow the match to be fully created
       }
 
       await fetchMatches();
@@ -96,6 +98,7 @@ export const useMatches = () => {
         .eq('is_quick_game', true)
         .neq('id', matchId)
         .neq('creator_wallet', creatorWallet)
+        .is('opponent_wallet', null)
         .limit(1);
 
       if (error) throw error;
@@ -111,6 +114,11 @@ export const useMatches = () => {
           .from('matches')
           .update({ status: 'cancelled' })
           .eq('id', matchId);
+          
+        toast({
+          title: "⚡ Auto-Matched!",
+          description: "Found an opponent, starting game!",
+        });
       }
     } catch (error) {
       console.error('Error during auto-match:', error);
@@ -127,6 +135,7 @@ export const useMatches = () => {
           started_at: new Date().toISOString()
         })
         .eq('id', matchId)
+        .eq('status', 'waiting') // Only join if still waiting
         .select()
         .single();
 
