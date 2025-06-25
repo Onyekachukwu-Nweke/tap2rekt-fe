@@ -1,8 +1,10 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Target, Users, Zap, Trophy, Timer, Coins, Play, Crown, Sparkles } from 'lucide-react';
 import CreateBattleForm from './CreateBattleForm';
+import CreateBattleModal from './CreateBattleModal';
 import ActiveMatches from './ActiveMatches';
 import { useState } from 'react';
 

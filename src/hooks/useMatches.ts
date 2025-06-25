@@ -53,7 +53,7 @@ export const useMatches = () => {
     }
   };
 
-  const createMatch = async (walletAddress: string, wager: number, isQuickGame: boolean = false) => {
+  const createMatch = async (walletAddress: string, wager: number, isQuickGame = false) => {
     try {
       const { data, error } = await supabase
         .from('matches')
@@ -206,7 +206,7 @@ export const useMatches = () => {
     }
   };
 
-  const getMatch = async (matchId: string) => {
+  const getMatch = async (matchId: string): Promise<Match | null> => {
     try {
       const { data, error } = await supabase
         .from('matches')
@@ -215,14 +215,14 @@ export const useMatches = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      return data as Match;
     } catch (error) {
       console.error('Error fetching match:', error);
       return null;
     }
   };
 
-  const getTapResults = async (matchId: string) => {
+  const getTapResults = async (matchId: string): Promise<TapResult[]> => {
     try {
       const { data, error } = await supabase
         .from('tap_results')
