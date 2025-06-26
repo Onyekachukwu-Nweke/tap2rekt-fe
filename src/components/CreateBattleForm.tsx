@@ -1,74 +1,85 @@
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Coins, Target } from 'lucide-react';
-import { useMatches } from '@/hooks/useMatches';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Coins, Lock, Users } from 'lucide-react';
 
 interface CreateBattleFormProps {
-  walletAddress: string;
-  onBattleCreated?: (matchId: string) => void;
+  onSubmit: (wager: number, isPrivate: boolean) => void;
+  loading?: boolean;
 }
 
-const CreateBattleForm = ({ walletAddress, onBattleCreated }: CreateBattleFormProps) => {
+const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) => {
   const [wager, setWager] = useState(10);
-  const [isCreating, setIsCreating] = useState(false);
-  const { createMatch } = useMatches();
+  const [isPrivate, setIsPrivate] = useState(false);
 
-  const handleCreateBattle = async () => {
-    if (!walletAddress) {
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const match = await createMatch(walletAddress, wager);
-      if (match && onBattleCreated) {
-        onBattleCreated(match.id);
-      }
-    } catch (error) {
-      console.error('Failed to create battle:', error);
-    } finally {
-      setIsCreating(false);
-    }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(wager, isPrivate);
   };
 
   return (
-    <Card className="bg-gradient-to-br from-purple-800/90 to-purple-900/90 border-purple-500/40 backdrop-blur-xl">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl text-slate-100 flex items-center">
-          <Target className="w-6 h-6 mr-3 text-purple-400" />
-          Create New Battle
+    <Card className="bg-slate-800/50 border-slate-700">
+      <CardHeader>
+        <CardTitle className="text-slate-100 flex items-center">
+          <Coins className="w-5 h-5 mr-2 text-amber-400" />
+          Create Battle
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="wager" className="text-slate-200">
-            Wager Amount (GORB)
-          </Label>
-          <div className="relative">
-            <Coins className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-amber-400" />
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="wager" className="text-slate-200">
+              Wager Amount (GORB)
+            </Label>
             <Input
               id="wager"
               type="number"
               min="1"
+              max="1000"
               value={wager}
               onChange={(e) => setWager(Number(e.target.value))}
-              className="pl-10 bg-slate-700/60 border-slate-600/40 text-slate-200"
-              placeholder="Enter wager amount"
+              className="bg-slate-700 border-slate-600 text-slate-100"
             />
           </div>
-        </div>
 
-        <Button 
-          onClick={handleCreateBattle}
-          disabled={isCreating || !walletAddress || wager < 1}
-          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold py-3"
-        >
-          {isCreating ? 'Creating Battle...' : `🎮 Create Battle (${wager} GORB)`}
-        </Button>
+          <div className="flex items-center justify-between p-4 bg-slate-700/40 border border-slate-600/30 rounded-lg">
+            <div className="flex items-center space-x-3">
+              {isPrivate ? (
+                <Lock className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Users className="w-5 h-5 text-emerald-400" />
+              )}
+              <div>
+                <Label htmlFor="private-toggle" className="text-slate-200 font-medium">
+                  {isPrivate ? 'Private Battle' : 'Public Battle'}
+                </Label>
+                <p className="text-sm text-slate-400">
+                  {isPrivate 
+                    ? 'Only accessible via direct link' 
+                    : 'Visible in active battles list'
+                  }
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="private-toggle"
+              checked={isPrivate}
+              onCheckedChange={setIsPrivate}
+            />
+          </div>
+
+          <Button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+            disabled={loading}
+          >
+            {loading ? 'Creating...' : `Create Battle (${wager} GORB)`}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

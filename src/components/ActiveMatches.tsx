@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Clock, Coins } from 'lucide-react';
+import { Target, Clock, Coins, Lock } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 
 interface ActiveMatchesProps {
@@ -51,7 +51,7 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
       <CardHeader>
         <CardTitle className="text-2xl text-slate-200 flex items-center">
           <Target className="w-6 h-6 mr-3 text-purple-400" />
-          Active Battles
+          Public Battles
           <Badge className="ml-3 bg-gradient-to-r from-emerald-600 to-teal-600">
             {matches.length} Live
           </Badge>
@@ -60,8 +60,8 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
       <CardContent>
         {matches.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-slate-400 text-lg mb-2">No active battles</div>
-            <div className="text-slate-500 text-sm">Be the first to create one!</div>
+            <div className="text-slate-400 text-lg mb-2">No public battles available</div>
+            <div className="text-slate-500 text-sm">Create one or check back later!</div>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -75,8 +75,9 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
                     <Target className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-slate-200 font-semibold">
+                    <div className="text-slate-200 font-semibold flex items-center">
                       {match.creator_wallet.slice(0, 8)}...{match.creator_wallet.slice(-6)}
+                      {match.is_private && <Lock className="w-4 h-4 ml-2 text-amber-400" />}
                     </div>
                     <div className="flex items-center space-x-3 text-sm text-slate-400">
                       <div className="flex items-center">
@@ -107,6 +108,12 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
             ))}
           </div>
         )}
+        
+        <div className="mt-6 p-4 bg-slate-700/20 border border-slate-600/20 rounded-lg text-center">
+          <p className="text-slate-400 text-sm">
+            🔒 <strong>Private battles</strong> are hidden from this list and only accessible via direct link
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

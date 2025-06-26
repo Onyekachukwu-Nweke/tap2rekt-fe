@@ -15,6 +15,7 @@ export type Database = {
           created_at: string | null
           creator_wallet: string
           id: string
+          is_private: boolean
           is_quick_game: boolean
           opponent_wallet: string | null
           started_at: string | null
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string | null
           creator_wallet: string
           id?: string
+          is_private?: boolean
           is_quick_game?: boolean
           opponent_wallet?: string | null
           started_at?: string | null
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string | null
           creator_wallet?: string
           id?: string
+          is_private?: boolean
           is_quick_game?: boolean
           opponent_wallet?: string | null
           started_at?: string | null

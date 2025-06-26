@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +9,7 @@ interface Match {
   wager: number;
   status: string;
   is_quick_game?: boolean;
+  is_private?: boolean;
   winner_wallet: string | null;
   created_at: string;
   started_at: string | null;
@@ -37,6 +37,7 @@ export const useMatches = () => {
         .from('matches')
         .select('*')
         .eq('status', 'waiting')
+        .eq('is_private', false) // Only show public matches
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -53,7 +54,7 @@ export const useMatches = () => {
     }
   };
 
-  const createMatch = async (walletAddress: string, wager: number, isQuickGame = false) => {
+  const createMatch = async (walletAddress: string, wager: number, isQuickGame = false, isPrivate = false) => {
     try {
       const { data, error } = await supabase
         .from('matches')
@@ -61,7 +62,8 @@ export const useMatches = () => {
           creator_wallet: walletAddress,
           wager: wager,
           status: 'waiting',
-          is_quick_game: isQuickGame
+          is_quick_game: isQuickGame,
+          is_private: isPrivate
         }])
         .select()
         .single();

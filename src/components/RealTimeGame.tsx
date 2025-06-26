@@ -1,9 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Target, Timer, Zap, Trophy, Users, Coins, ArrowLeft } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
+import { useRealTimeTaps } from '@/hooks/useRealTimeTaps';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,12 +19,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
   const [tapCount, setTapCount] = useState(0);
-  const [opponentTaps, setOpponentTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
-  const { getMatch, submitTapResult, getTapResults } = useMatches();
+  const { getMatch, submitTapResult } = useMatches();
+  const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
 
   // Load match data and immediately start countdown
@@ -56,7 +58,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     console.log('Initializing game with synchronized countdown');
     setGameState('countdown');
     setTapCount(0);
-    setOpponentTaps(0);
     setTimeLeft(10);
     setHasSubmitted(false);
     
@@ -75,11 +76,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     }, 1000);
   };
 
-  // Real-time subscriptions for match updates and tap results
+  // Real-time subscriptions for match updates
   useEffect(() => {
     if (!matchId) return;
 
-    // Subscribe to match updates
     const matchChannel = supabase
       .channel(`match-updates-${matchId}`)
       .on(
@@ -111,33 +111,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       )
       .subscribe();
 
-    // Subscribe to tap results for real-time opponent progress
-    const resultsChannel = supabase
-      .channel(`results-${matchId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'tap_results',
-          filter: `match_id=eq.${matchId}`
-        },
-        (payload) => {
-          const result = payload.new;
-          console.log('New tap result received:', result);
-          
-          // Update opponent taps if it's not from current player
-          if (result.wallet_address !== walletAddress) {
-            setOpponentTaps(result.score);
-            console.log('Opponent final score updated:', result.score);
-          }
-        }
-      )
-      .subscribe();
-
     return () => {
       supabase.removeChannel(matchChannel);
-      supabase.removeChannel(resultsChannel);
     };
   }, [matchId, walletAddress]);
 
@@ -159,11 +134,15 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     }, 1000);
   };
 
-  const handleTap = () => {
+  const handleTap = useCallback(() => {
     if (gameState === 'active') {
-      setTapCount(prev => prev + 1);
+      const newTapCount = tapCount + 1;
+      setTapCount(newTapCount);
+      
+      // Send real-time update to opponent
+      sendTapUpdate(newTapCount);
     }
-  };
+  }, [gameState, tapCount, sendTapUpdate]);
 
   const endGame = async () => {
     if (hasSubmitted) return;
@@ -237,9 +216,19 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   const isCreator = match.creator_wallet === walletAddress;
   const opponentWallet = isCreator ? match.opponent_wallet : match.creator_wallet;
+  const opponentTaps = playerTaps[opponentWallet] || 0;
 
   return (
     <div className="space-y-6">
+      {/* Connection Status */}
+      {gameState === 'active' && (
+        <div className="flex justify-center">
+          <Badge className={`${isConnected ? 'bg-emerald-600' : 'bg-red-600'} text-white`}>
+            {isConnected ? '🔴 LIVE' : '❌ Disconnected'}
+          </Badge>
+        </div>
+      )}
+
       {/* Match Info Header */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -303,6 +292,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                 <span>Time: {timeLeft}s</span>
                 <Zap className="w-5 h-5 ml-6" />
                 <span>Taps: {tapCount}</span>
+                <Users className="w-5 h-5 ml-6" />
+                <span>Opponent: {opponentTaps}</span>
               </div>
             )}
 
