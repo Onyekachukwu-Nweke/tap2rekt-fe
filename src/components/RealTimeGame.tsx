@@ -19,7 +19,7 @@ interface RealTimeGameProps {
 
 const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGameProps) => {
   const [match, setMatch] = useState<any>(null);
-  const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
+  const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'active' | 'finished'>('lobby');
   const [tapCount, setTapCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [countdownTime, setCountdownTime] = useState(3);
@@ -107,7 +107,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   // Initialize the game with a synchronized countdown
   const initializeGame = () => {
-    if (gameState !== 'loading') return;
+    if (gameState !== 'lobby') return;
     
     console.log('Initializing game with synchronized countdown');
     setGameState('countdown');
@@ -150,7 +150,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           console.log('Match updated in RealTimeGame:', updatedMatch);
           
           // Check if we should start the game when match is updated
-          if (isGameReadyToStart(updatedMatch) && gameState === 'loading') {
+          if (isGameReadyToStart(updatedMatch) && gameState === 'lobby') {
             console.log('Match updated - initializing game');
             initializeGame();
           }
@@ -252,7 +252,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   const getGameStateDisplay = () => {
     switch (gameState) {
-      case 'loading':
+      case 'lobby':
         return {
           title: '⚡ Starting Battle',
           subtitle: 'Get ready for real multiplayer action!',
@@ -503,7 +503,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             Back to Hub
           </Button>
         )}
-        {(gameState === 'loading' || gameState === 'countdown' || gameState === 'active') && (
+        {(gameState === 'lobby' || gameState === 'countdown' || gameState === 'active') && (
           <Button 
             onClick={() => navigate('/')}
             className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
