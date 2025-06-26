@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -312,6 +313,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const opponentWallet = isCreator ? match.opponent_wallet : match.creator_wallet;
   const opponentTaps = playerTaps[opponentWallet] || finalScores[opponentWallet] || 0;
   const myFinalScore = finalScores[walletAddress] || tapCount;
+  const stateDisplay = getGameStateDisplay();
 
   return (
     <div className="space-y-4 md:space-y-6">
