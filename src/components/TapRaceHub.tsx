@@ -2,15 +2,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, Zap, Trophy, Timer, Coins, Play, Crown, Sparkles, Gamepad2 } from 'lucide-react';
-import CreateBattleForm from './CreateBattleForm';
+import { Target, Trophy, Timer, Coins, Play, Crown, Sparkles, Gamepad2 } from 'lucide-react';
 import CreateBattleModal from './CreateBattleModal';
 import ActiveMatches from './ActiveMatches';
 import { useState } from 'react';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
-import { useMatches } from '@/hooks/useMatches';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
 
 interface TapRaceHubProps {
   onCreateMatch: () => void;
@@ -28,59 +25,12 @@ interface TapRaceHubProps {
 const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeMode, playerStats }: TapRaceHubProps) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { walletAddress } = useWalletAddress();
-  const { matches, joinMatch } = useMatches();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const handleBattleCreated = (matchId: string) => {
     console.log('Battle created with ID:', matchId);
     setShowCreateModal(false);
     onCreateMatch();
-  };
-
-  const handleQuickMatch = async () => {
-    if (!walletAddress) {
-      toast({
-        title: "⚠️ Wallet Required",
-        description: "Connect your wallet to join matches",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Find an available match to join
-    const availableMatch = matches.find(match => 
-      match.status === 'waiting' && 
-      !match.opponent_wallet && 
-      match.creator_wallet !== walletAddress
-    );
-
-    if (availableMatch) {
-      try {
-        console.log('Quick joining match:', availableMatch.id);
-        await joinMatch(availableMatch.id, walletAddress);
-        
-        // Navigate directly to the multiplayer match
-        navigate(`/match/${availableMatch.id}`);
-        
-        toast({
-          title: "⚡ Quick Match Found!",
-          description: "Joining real multiplayer battle now!",
-        });
-      } catch (error) {
-        console.error('Failed to join quick match:', error);
-        toast({
-          title: "❌ Quick Match Failed",
-          description: "Could not join available battle",
-          variant: "destructive"
-        });
-      }
-    } else {
-      toast({
-        title: "🔍 No Matches Available",
-        description: "Create a new battle or wait for others to create matches",
-      });
-    }
   };
 
   const handleJoinMatch = (matchId: string) => {
@@ -102,7 +52,6 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
           </h2>
           <div className="flex justify-center space-x-4 mb-6">
             <Target className="w-6 h-6 text-purple-400" />
-            <Zap className="w-6 h-6 text-amber-400" />
             <Crown className="w-6 h-6 text-indigo-400" />
           </div>
           <p className="text-xl text-slate-300 max-w-4xl mx-auto font-medium leading-relaxed">
@@ -144,8 +93,8 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
         </CardContent>
       </Card>
 
-      {/* Main Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {/* Main Actions - Only Create Match and Practice */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Create Match */}
         <Card className="bg-gradient-to-br from-purple-800/90 to-purple-900/90 border-purple-500/40 hover:border-purple-400/80 transition-all duration-300 hover:scale-[1.02] backdrop-blur-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-indigo-600/10 group-hover:from-purple-600/20 group-hover:to-indigo-600/20 transition-all duration-300"></div>
@@ -171,7 +120,7 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
               </div>
               <div className="flex items-center text-slate-300 bg-slate-700/40 border border-slate-600/30 rounded-lg p-2">
                 <Timer className="w-4 h-4 mr-2 text-indigo-400" />
-                10 seconds
+                30 seconds
               </div>
             </div>
             
@@ -181,45 +130,6 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
             >
               <Play className="w-5 h-5 mr-3" />
               🎮 CREATE BATTLE!
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Quick Match - Real Multiplayer */}
-        <Card className="bg-gradient-to-br from-amber-800/90 to-orange-900/90 border-amber-500/40 hover:border-amber-400/80 transition-all duration-300 hover:scale-[1.02] backdrop-blur-xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 to-orange-600/10 group-hover:from-amber-600/20 group-hover:to-orange-600/20 transition-all duration-300"></div>
-          <CardHeader className="pb-3 relative">
-            <div className="flex items-center justify-between">
-              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 shadow-lg">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-                Real Multiplayer
-              </Badge>
-            </div>
-            <CardTitle className="text-xl text-slate-100 font-bold">Quick Match</CardTitle>
-            <CardDescription className="text-slate-300 leading-relaxed">
-              Jump into existing real multiplayer battles and challenge other players instantly!
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 relative">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center text-slate-300 bg-slate-700/40 border border-slate-600/30 rounded-lg p-2">
-                <Zap className="w-4 h-4 mr-2 text-purple-400" />
-                Real Players
-              </div>
-              <div className="flex items-center text-slate-300 bg-slate-700/40 border border-slate-600/30 rounded-lg p-2">
-                <Trophy className="w-4 h-4 mr-2 text-amber-400" />
-                Winner Takes All
-              </div>
-            </div>
-            
-            <Button 
-              className="w-full text-lg font-bold py-6 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 hover:shadow-xl hover:shadow-amber-500/30 transform hover:scale-[1.02] transition-all duration-300"
-              onClick={handleQuickMatch}
-            >
-              <Zap className="w-5 h-5 mr-3" />
-              ⚡ QUICK MULTIPLAYER!
             </Button>
           </CardContent>
         </Card>

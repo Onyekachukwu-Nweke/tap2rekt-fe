@@ -1,10 +1,11 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Target, Zap, Users } from 'lucide-react';
+import { Coins, Target } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +19,6 @@ interface CreateBattleModalProps {
 
 const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleModalProps) => {
   const [wager, setWager] = useState(10);
-  const [gameMode, setGameMode] = useState<'quick' | 'private'>('quick');
   const [isCreating, setIsCreating] = useState(false);
   const { createMatch } = useMatches();
   const { toast } = useToast();
@@ -37,15 +37,16 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
 
     setIsCreating(true);
     try {
-      const match = await createMatch(walletAddress, wager, gameMode === 'quick');
+      // All games are now public (not private), anyone can join if they can pay the wager
+      const match = await createMatch(walletAddress, wager, false, false);
       if (match) {
         if (onBattleCreated) {
           onBattleCreated(match.id);
         }
         
         toast({
-          title: gameMode === 'quick' ? "🎮 Quick Match Created!" : "🎮 Private Battle Created!",
-          description: gameMode === 'quick' ? "Searching for opponent..." : "Share the link with your opponent",
+          title: "🎮 Battle Created!",
+          description: "Waiting for opponent to join...",
         });
 
         // Close modal and redirect to match page
@@ -61,7 +62,6 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
 
   const handleClose = () => {
     onClose();
-    setGameMode('quick');
     setWager(10);
   };
 
@@ -76,39 +76,15 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Game Mode Selection */}
-          <div className="space-y-3">
-            <Label className="text-slate-200">Game Mode</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setGameMode('quick')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  gameMode === 'quick'
-                    ? 'border-purple-500 bg-purple-500/20'
-                    : 'border-slate-600 bg-slate-700/40'
-                }`}
-              >
-                <div className="flex items-center justify-center mb-2">
-                  <Zap className="w-6 h-6 text-amber-400" />
-                </div>
-                <div className="text-slate-200 font-semibold">Quick Game</div>
-                <div className="text-xs text-slate-400">Auto-match with opponent</div>
-              </button>
-              
-              <button
-                onClick={() => setGameMode('private')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  gameMode === 'private'
-                    ? 'border-purple-500 bg-purple-500/20'
-                    : 'border-slate-600 bg-slate-700/40'
-                }`}
-              >
-                <div className="flex items-center justify-center mb-2">
-                  <Users className="w-6 h-6 text-indigo-400" />
-                </div>
-                <div className="text-slate-200 font-semibold">Private Game</div>
-                <div className="text-xs text-slate-400">Share link with friend</div>
-              </button>
+          {/* Battle Info */}
+          <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
+            <div className="text-center space-y-2">
+              <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                Open Battle - 30 Second Tap Race
+              </Badge>
+              <p className="text-sm text-slate-300">
+                Anyone can join if they match your wager amount
+              </p>
             </div>
           </div>
 
@@ -129,6 +105,9 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
                 placeholder="Enter wager amount"
               />
             </div>
+            <p className="text-xs text-slate-400">
+              Winner takes {wager * 2} GORB total prize pool
+            </p>
           </div>
 
           <Button 
@@ -136,7 +115,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
             disabled={isCreating || !isConnected || wager < 1}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold py-3"
           >
-            {isCreating ? 'Creating Battle...' : `🎮 Create ${gameMode === 'quick' ? 'Quick' : 'Private'} Battle (${wager} GORB)`}
+            {isCreating ? 'Creating Battle...' : `🎮 Create Battle (${wager} GORB)`}
           </Button>
 
           {!isConnected && (

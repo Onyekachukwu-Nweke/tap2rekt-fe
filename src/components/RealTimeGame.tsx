@@ -8,6 +8,8 @@ import { useMatches } from '@/hooks/useMatches';
 import { useRealTimeTaps } from '@/hooks/useRealTimeTaps';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { PlayerStats } from './game/PlayerStats';
+import { GameTimers } from './game/GameTimers';
 
 interface RealTimeGameProps {
   matchId: string;
@@ -19,15 +21,27 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
   const [tapCount, setTapCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(30); // Increased to 30 seconds
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [finalScores, setFinalScores] = useState<{[key: string]: number}>({});
   const [showPostGame, setShowPostGame] = useState(false);
-  const { getMatch, submitTapResult, getMatchWithResults } = useMatches();
+  const [playerStats, setPlayerStats] = useState<any>(null);
+  const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
   const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
+
+  // Load player stats
+  useEffect(() => {
+    const loadPlayerStats = async () => {
+      if (walletAddress) {
+        const stats = await getPlayerStats(walletAddress);
+        setPlayerStats(stats);
+      }
+    };
+    loadPlayerStats();
+  }, [walletAddress, getPlayerStats]);
 
   // Load match data and immediately start countdown
   useEffect(() => {
@@ -85,7 +99,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     console.log('Initializing game with synchronized countdown');
     setGameState('countdown');
     setTapCount(0);
-    setTimeLeft(10);
+    setTimeLeft(30); // 30 seconds timer
     setHasSubmitted(false);
     
     // Start the countdown timer
@@ -129,10 +143,13 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             initializeGame();
           }
           
-          // Handle game completion
+          // Handle game completion and reload player stats
           if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
             setWinner(updatedMatch.winner_wallet);
             setGameState('finished');
+            
+            // Reload player stats after game completion
+            getPlayerStats(walletAddress).then(setPlayerStats);
           }
         }
       )
@@ -141,15 +158,15 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     return () => {
       supabase.removeChannel(matchChannel);
     };
-  }, [matchId, walletAddress]);
+  }, [matchId, walletAddress, gameState, getPlayerStats]);
 
   const startActiveGame = () => {
     console.log('Starting ACTIVE game phase');
     setGameState('active');
-    setTimeLeft(10);
+    setTimeLeft(30); // 30 seconds timer
     
     // Start game timer
-    let timeRemaining = 10;
+    let timeRemaining = 30;
     const gameTimer = setInterval(() => {
       timeRemaining--;
       setTimeLeft(timeRemaining);
@@ -186,6 +203,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       await submitTapResult(matchId, walletAddress, tapCount, signature);
       console.log('Score submitted successfully');
       setShowPostGame(true);
+      
+      // Reload player stats after submitting result
+      const updatedStats = await getPlayerStats(walletAddress);
+      setPlayerStats(updatedStats);
     } catch (error) {
       console.error('Failed to submit result:', error);
     }
@@ -278,17 +299,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         <CardContent>
           <div className="grid grid-cols-2 gap-8">
             {/* Your Stats */}
-            <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-lg font-bold text-purple-300">You</div>
-              <div className="text-3xl font-bold text-white">{myFinalScore}</div>
-              <div className="text-sm text-slate-400">Taps</div>
-              {gameState === 'finished' && winner === walletAddress && (
-                <Badge className="mt-2 bg-emerald-600">Winner!</Badge>
-              )}
-            </div>
+            <PlayerStats tapCount={myFinalScore} />
             
             {/* Opponent Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
@@ -307,6 +318,13 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           </div>
         </CardContent>
       </Card>
+
+      {/* Game Timers */}
+      <GameTimers 
+        gameState={gameState}
+        countdownTime={countdownTime}
+        timeLeft={timeLeft}
+      />
 
       {/* Game Area */}
       <Card className="bg-slate-800/50 border-slate-700">
@@ -360,7 +378,35 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </CardContent>
       </Card>
 
-      {/* Post-Game Actions */}
+      {/* Updated Player Stats Display */}
+      {gameState === 'finished' && playerStats && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Trophy className="w-5 h-5 mr-2 text-amber-400" />
+              Updated Battle Stats
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
+                <div className="text-2xl font-bold text-purple-300">{playerStats.total_battles || 0}</div>
+                <div className="text-sm text-slate-400">Total Battles</div>
+              </div>
+              <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
+                <div className="text-2xl font-bold text-amber-300">{playerStats.total_victories || 0}</div>
+                <div className="text-sm text-slate-400">Victories</div>
+              </div>
+              <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
+                <div className="text-2xl font-bold text-indigo-300">{playerStats.best_tap_count || 0}</div>
+                <div className="text-sm text-slate-400">Best Score</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Buttons - Removed auto-navigation */}
       <div className="flex justify-center space-x-4">
         {gameState === 'finished' && showPostGame ? (
           <>

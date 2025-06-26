@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -129,11 +130,7 @@ const MatchPage = () => {
     }
   };
 
-  const handleGameComplete = () => {
-    console.log('Real multiplayer game completed!');
-    // Navigate back to hub after game completion
-    setTimeout(() => navigate('/'), 3000);
-  };
+  // Removed handleGameComplete function - no auto-navigation
 
   if (loading) {
     return (
@@ -176,7 +173,7 @@ const MatchPage = () => {
           <RealTimeGame 
             matchId={matchId!}
             walletAddress={walletAddress!}
-            onGameComplete={handleGameComplete}
+            // Removed onGameComplete prop - no auto-navigation
           />
         </div>
       </div>
@@ -217,7 +214,7 @@ const MatchPage = () => {
               <CardTitle className="text-3xl text-slate-100 flex items-center justify-center mb-4">
                 <Target className="w-8 h-8 mr-3 text-purple-400" />
                 Real Battle Lobby
-                {match.is_quick_game && <Badge className="ml-3 bg-amber-600">Quick Game</Badge>}
+                <Badge className="ml-3 bg-emerald-600">30s Battle</Badge>
               </CardTitle>
               <div className="flex items-center justify-center space-x-2">
                 <Clock className="w-5 h-5 text-slate-400" />
@@ -287,7 +284,7 @@ const MatchPage = () => {
                   <div className="flex items-center justify-center mb-2">
                     <Target className="w-5 h-5 text-indigo-400" />
                   </div>
-                  <div className="text-lg font-bold text-white">10s</div>
+                  <div className="text-lg font-bold text-white">30s</div>
                   <div className="text-xs text-slate-400">Duration</div>
                 </div>
               </div>
