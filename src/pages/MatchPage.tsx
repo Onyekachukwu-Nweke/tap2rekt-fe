@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -52,12 +51,12 @@ const MatchPage = () => {
             setHasJoined(true);
           }
 
-          // CRITICAL FIX: Start game immediately if match is in progress with both players
+          // IMMEDIATELY start real multiplayer game if match is in progress with both players
           if (matchData.status === 'in_progress' && 
               matchData.opponent_wallet && 
               matchData.creator_wallet &&
               isPlayerInMatch) {
-            console.log('Both players present, starting real multiplayer game');
+            console.log('Match in progress with both players - starting REAL multiplayer game immediately');
             setGameStarted(true);
           }
         }
@@ -91,17 +90,16 @@ const MatchPage = () => {
           
           console.log('Match updated:', updatedMatch);
           
-          // CRITICAL FIX: Auto-start game when both players are ready
+          // CRITICAL: Immediately start REAL multiplayer game when both players are ready
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
               updatedMatch.creator_wallet && 
-              !gameStarted &&
               (updatedMatch.creator_wallet === walletAddress || updatedMatch.opponent_wallet === walletAddress)) {
-            console.log('Starting multiplayer game for both players!');
+            console.log('Both players joined - starting REAL MULTIPLAYER GAME for both players!');
             setGameStarted(true);
             toast({
-              title: "⚡ Game Starting!",
-              description: "Both players ready - let's battle!",
+              title: "⚡ Real Battle Starting!",
+              description: "Both players ready - entering multiplayer arena!",
             });
           }
         }
@@ -111,18 +109,18 @@ const MatchPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [matchId, gameStarted, toast, walletAddress]);
+  }, [matchId, toast, walletAddress]);
 
   const handleJoinMatch = async () => {
     if (!matchId || !match || !walletAddress) return;
 
     try {
-      console.log('Player joining match:', matchId);
+      console.log('Player joining match for REAL multiplayer:', matchId);
       await joinMatch(matchId, walletAddress);
       setHasJoined(true);
       toast({
-        title: "✅ Joined Battle!",
-        description: "Starting game...",
+        title: "✅ Joined Real Battle!",
+        description: "Preparing multiplayer game...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -150,9 +148,9 @@ const MatchPage = () => {
   };
 
   const handleGameComplete = () => {
-    console.log('Game completed!');
+    console.log('Real multiplayer game completed!');
     setGameStarted(false);
-    // Optionally navigate back to hub after game completion
+    // Navigate back to hub after game completion
     setTimeout(() => navigate('/'), 3000);
   };
 
@@ -181,7 +179,7 @@ const MatchPage = () => {
     );
   }
 
-  // CRITICAL FIX: Show the REAL multiplayer game when both players are present
+  // SHOW REAL MULTIPLAYER GAME - No practice mode for opponents!
   if (gameStarted && match.status === 'in_progress' && match.opponent_wallet && match.creator_wallet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -196,7 +194,7 @@ const MatchPage = () => {
     );
   }
 
-  // Show lobby/waiting room
+  // Show lobby/waiting room ONLY when match is still waiting
   const isCreator = match?.creator_wallet === walletAddress;
   const canJoin = !hasJoined && !isCreator && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
   const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
@@ -231,14 +229,14 @@ const MatchPage = () => {
             <CardHeader className="text-center">
               <CardTitle className="text-3xl text-slate-100 flex items-center justify-center mb-4">
                 <Target className="w-8 h-8 mr-3 text-purple-400" />
-                Battle Lobby
+                Real Battle Lobby
                 {match.is_quick_game && <Badge className="ml-3 bg-amber-600">Quick Game</Badge>}
               </CardTitle>
               <div className="flex items-center justify-center space-x-2">
                 <Clock className="w-5 h-5 text-slate-400" />
                 <span className="text-slate-300">
                   {isWaitingForOpponent ? 'Waiting for opponent...' : 
-                   bothPlayersReady ? 'Game starting!' : 'Ready to battle!'}
+                   bothPlayersReady ? 'Starting real multiplayer battle!' : 'Ready for real battle!'}
                 </span>
               </div>
             </CardHeader>
@@ -250,7 +248,7 @@ const MatchPage = () => {
               <CardTitle className="text-2xl text-slate-100 flex items-center justify-between">
                 <div className="flex items-center">
                   <Target className="w-7 h-7 mr-3 text-purple-400" />
-                  Tap Race Battle
+                  Real 1v1 Multiplayer Battle
                 </div>
                 <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
                   {match.wager * 2} GORB Prize
@@ -258,6 +256,8 @@ const MatchPage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              
+              
               {/* Players */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
@@ -295,7 +295,7 @@ const MatchPage = () => {
                     <Users className="w-5 h-5 text-purple-400" />
                   </div>
                   <div className="text-lg font-bold text-white">1v1</div>
-                  <div className="text-xs text-slate-400">Players</div>
+                  <div className="text-xs text-slate-400">Real Players</div>
                 </div>
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
@@ -312,14 +312,14 @@ const MatchPage = () => {
                 {canJoin && (
                   <>
                     <div className="text-lg text-slate-200 mb-4">
-                      Ready to join this battle?
+                      Ready to join this REAL multiplayer battle?
                     </div>
                     <Button 
                       onClick={handleJoinMatch}
                       className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-lg font-bold py-4"
                     >
                       <Play className="w-5 h-5 mr-3" />
-                      ⚡ JOIN BATTLE ({match.wager} GORB)
+                      ⚡ JOIN REAL BATTLE ({match.wager} GORB)
                     </Button>
                   </>
                 )}
@@ -327,34 +327,34 @@ const MatchPage = () => {
                 {isCreator && isWaitingForOpponent && (
                   <div className="text-center space-y-4">
                     <div className="text-lg text-slate-200 mb-2">
-                      🔗 Share this link with your opponent:
+                      🔗 Share this link with your opponent for REAL multiplayer battle:
                     </div>
                     <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
                       {window.location.href}
                     </div>
                     <div className="text-amber-400 text-sm flex items-center justify-center">
                       <Clock className="w-4 h-4 mr-2" />
-                      ⏳ Waiting for opponent to join...
+                      ⏳ Waiting for opponent to join real battle...
                     </div>
                   </div>
                 )}
 
                 {hasJoined && isWaitingForOpponent && !isCreator && (
                   <div className="text-center">
-                    <div className="text-lg text-emerald-400 mb-2">✅ You've joined this battle!</div>
+                    <div className="text-lg text-emerald-400 mb-2">✅ You've joined this REAL battle!</div>
                     <div className="text-slate-400 flex items-center justify-center">
                       <Clock className="w-4 h-4 mr-2" />
-                      Waiting for the game to start...
+                      Waiting for the real multiplayer game to start...
                     </div>
                   </div>
                 )}
 
                 {bothPlayersReady && (
                   <div className="text-center">
-                    <div className="text-lg text-emerald-400 mb-2">🎮 Both players ready!</div>
+                    <div className="text-lg text-emerald-400 mb-2">🎮 Both players ready for REAL battle!</div>
                     <div className="text-slate-400 flex items-center justify-center">
                       <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Starting battle...
+                      Starting real multiplayer battle...
                     </div>
                   </div>
                 )}
