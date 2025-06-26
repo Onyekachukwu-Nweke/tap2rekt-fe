@@ -1,48 +1,43 @@
 
 import { Clock, Timer } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface GameTimersProps {
-  gameState: 'lobby' | 'countdown' | 'active' | 'finished';
+  gameState: 'loading' | 'countdown' | 'active' | 'finished';
   countdownTime: number;
   timeLeft: number;
 }
 
 export const GameTimers = ({ gameState, countdownTime, timeLeft }: GameTimersProps) => {
-  if (gameState === 'lobby') {
-    return null;
+  if (gameState === 'countdown') {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="p-4 text-center">
+          <div className="flex items-center justify-center space-x-2 text-amber-400">
+            <Clock className="w-5 h-5" />
+            <span className="text-lg font-bold">
+              Starting in {countdownTime}...
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
-  return (
-    <div className="flex justify-center space-x-8">
-      {gameState === 'countdown' && (
-        <div className="text-center bg-orange-900/40 border border-orange-600/30 rounded-lg p-4">
-          <div className="flex items-center justify-center mb-2">
-            <Clock className="w-6 h-6 text-orange-400" />
+  if (gameState === 'active') {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="p-4 text-center">
+          <div className="flex items-center justify-center space-x-2 text-emerald-400">
+            <Timer className="w-5 h-5" />
+            <span className="text-lg font-bold">
+              {timeLeft}s remaining
+            </span>
           </div>
-          <div className="text-2xl font-bold text-white">{countdownTime}</div>
-          <div className="text-sm text-orange-300">Starting...</div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
+    );
+  }
 
-      {gameState === 'active' && (
-        <div className="text-center bg-green-900/40 border border-green-600/30 rounded-lg p-4">
-          <div className="flex items-center justify-center mb-2">
-            <Timer className="w-6 h-6 text-green-400" />
-          </div>
-          <div className="text-3xl font-bold text-white">{timeLeft}</div>
-          <div className="text-sm text-green-300">Seconds Left</div>
-        </div>
-      )}
-
-      {gameState === 'finished' && (
-        <div className="text-center bg-emerald-900/40 border border-emerald-600/30 rounded-lg p-4">
-          <div className="flex items-center justify-center mb-2">
-            <Timer className="w-6 h-6 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-bold text-white">Done!</div>
-          <div className="text-sm text-emerald-300">Game Complete</div>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 };

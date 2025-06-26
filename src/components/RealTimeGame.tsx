@@ -21,13 +21,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
   const [tapCount, setTapCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30); // Increased to 30 seconds
+  const [timeLeft, setTimeLeft] = useState(30);
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [finalScores, setFinalScores] = useState<{[key: string]: number}>({});
   const [showPostGame, setShowPostGame] = useState(false);
   const [playerStats, setPlayerStats] = useState<any>(null);
+  const [isSubmittingResult, setIsSubmittingResult] = useState(false);
   const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
   const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
@@ -36,8 +37,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   useEffect(() => {
     const loadPlayerStats = async () => {
       if (walletAddress) {
-        const stats = await getPlayerStats(walletAddress);
-        setPlayerStats(stats);
+        try {
+          const stats = await getPlayerStats(walletAddress);
+          setPlayerStats(stats);
+        } catch (error) {
+          console.error('Error loading player stats:', error);
+        }
       }
     };
     loadPlayerStats();
@@ -46,42 +51,50 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   // Load match data and immediately start countdown
   useEffect(() => {
     const loadMatchAndStart = async () => {
-      const matchData = await getMatch(matchId);
-      setMatch(matchData);
-      
-      console.log('RealTimeGame loaded match:', matchData);
-      
-      // Check if match is already completed
-      if (matchData?.status === 'completed') {
-        await loadCompletedMatchData();
-        return;
-      }
-      
-      // Check if we should start the game immediately
-      if (isGameReadyToStart(matchData)) {
-        console.log('Game is ready to start - initializing');
-        initializeGame();
+      try {
+        const matchData = await getMatch(matchId);
+        setMatch(matchData);
+        
+        console.log('RealTimeGame loaded match:', matchData);
+        
+        // Check if match is already completed
+        if (matchData?.status === 'completed') {
+          await loadCompletedMatchData();
+          return;
+        }
+        
+        // Check if we should start the game immediately
+        if (isGameReadyToStart(matchData)) {
+          console.log('Game is ready to start - initializing');
+          initializeGame();
+        }
+      } catch (error) {
+        console.error('Error loading match:', error);
       }
     };
     loadMatchAndStart();
   }, [matchId, getMatch]);
 
   const loadCompletedMatchData = async () => {
-    const matchWithResults = await getMatchWithResults(matchId);
-    if (matchWithResults) {
-      setMatch(matchWithResults.match);
-      setWinner(matchWithResults.match.winner_wallet);
-      
-      // Set final scores from tap results
-      const scores: {[key: string]: number} = {};
-      matchWithResults.tapResults.forEach((result: any) => {
-        scores[result.wallet_address] = result.score;
-      });
-      setFinalScores(scores);
-      setTapCount(scores[walletAddress] || 0);
-      
-      setGameState('finished');
-      setShowPostGame(true);
+    try {
+      const matchWithResults = await getMatchWithResults(matchId);
+      if (matchWithResults) {
+        setMatch(matchWithResults.match);
+        setWinner(matchWithResults.match.winner_wallet);
+        
+        // Set final scores from tap results
+        const scores: {[key: string]: number} = {};
+        matchWithResults.tapResults.forEach((result: any) => {
+          scores[result.wallet_address] = result.score;
+        });
+        setFinalScores(scores);
+        setTapCount(scores[walletAddress] || 0);
+        
+        setGameState('finished');
+        setShowPostGame(true);
+      }
+    } catch (error) {
+      console.error('Error loading completed match data:', error);
     }
   };
 
@@ -99,7 +112,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     console.log('Initializing game with synchronized countdown');
     setGameState('countdown');
     setTapCount(0);
-    setTimeLeft(30); // 30 seconds timer
+    setTimeLeft(30);
     setHasSubmitted(false);
     
     // Start the countdown timer
@@ -147,9 +160,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
             setWinner(updatedMatch.winner_wallet);
             setGameState('finished');
+            setShowPostGame(true);
             
             // Reload player stats after game completion
-            getPlayerStats(walletAddress).then(setPlayerStats);
+            getPlayerStats(walletAddress).then(setPlayerStats).catch(console.error);
           }
         }
       )
@@ -163,7 +177,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const startActiveGame = () => {
     console.log('Starting ACTIVE game phase');
     setGameState('active');
-    setTimeLeft(30); // 30 seconds timer
+    setTimeLeft(30);
     
     // Start game timer
     let timeRemaining = 30;
@@ -189,26 +203,36 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   }, [gameState, tapCount, sendTapUpdate]);
 
   const endGame = async () => {
-    if (hasSubmitted) return;
+    if (hasSubmitted || isSubmittingResult) return;
     
     console.log('Game ended, submitting score:', tapCount);
     setGameState('finished');
     setHasSubmitted(true);
+    setIsSubmittingResult(true);
 
     // Create a simple signature (in real app, use wallet.signMessage)
     const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
     const signature = btoa(message); // Mock signature - replace with real wallet signing
 
     try {
+      console.log('Submitting tap result...');
       await submitTapResult(matchId, walletAddress, tapCount, signature);
       console.log('Score submitted successfully');
-      setShowPostGame(true);
       
-      // Reload player stats after submitting result
-      const updatedStats = await getPlayerStats(walletAddress);
-      setPlayerStats(updatedStats);
+      // Wait a moment for the database to update, then reload player stats
+      setTimeout(async () => {
+        try {
+          const updatedStats = await getPlayerStats(walletAddress);
+          setPlayerStats(updatedStats);
+        } catch (error) {
+          console.error('Error reloading player stats:', error);
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error('Failed to submit result:', error);
+    } finally {
+      setIsSubmittingResult(false);
     }
 
     if (onGameComplete) {
@@ -246,7 +270,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       case 'finished':
         const isWinner = winner === walletAddress;
         return {
-          title: winner ? (isWinner ? '🎉 Victory!' : '💀 Defeat') : 'Game Complete!',
+          title: winner ? (isWinner ? '🎉 Victory!' : '💀 Defeat') : (isSubmittingResult ? 'Submitting...' : 'Game Complete!'),
           subtitle: `Your score: ${finalScores[walletAddress] || tapCount} taps`,
           bgColor: winner ? (isWinner 
             ? 'bg-gradient-to-br from-emerald-500 to-green-600'
@@ -354,7 +378,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               </div>
             )}
 
-            {gameState === 'finished' && showPostGame && (
+            {gameState === 'finished' && (
               <div className="text-lg mt-4 bg-white/20 rounded-lg px-6 py-3 text-center">
                 {winner ? (
                   <div>
@@ -370,7 +394,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                     )}
                   </div>
                 ) : (
-                  <div>🎮 Waiting for results...</div>
+                  <div>
+                    {isSubmittingResult ? '⏳ Submitting results...' : '🎮 Waiting for results...'}
+                  </div>
                 )}
               </div>
             )}
@@ -379,7 +405,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       </Card>
 
       {/* Updated Player Stats Display */}
-      {gameState === 'finished' && playerStats && (
+      {gameState === 'finished' && playerStats && showPostGame && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
@@ -406,7 +432,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </Card>
       )}
 
-      {/* Action Buttons - Removed auto-navigation */}
+      {/* Action Buttons */}
       <div className="flex justify-center space-x-4">
         {gameState === 'finished' && showPostGame ? (
           <>
