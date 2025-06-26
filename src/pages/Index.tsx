@@ -37,22 +37,25 @@ const Index = () => {
 
       {/* Header */}
       <header className="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl relative z-10">
-        <div className="container mx-auto px-4 py-6 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+        <div className="container mx-auto px-4 py-4 md:py-6 flex items-center justify-between">
+          <div className="flex items-center space-x-3 md:space-x-4">
             <div className="relative">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-xl shadow-purple-500/30">
-                <Target className="w-8 h-8 text-white" />
+              <div className="w-10 h-10 md:w-14 md:h-14 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-xl shadow-purple-500/30">
+                <Target className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full">
-                <Zap className="w-3 h-3 text-white ml-0.5 mt-0.5" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full">
+                <Zap className="w-2 h-2 md:w-3 md:h-3 text-white ml-0.5 mt-0.5" />
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-100 via-purple-100 to-indigo-200 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-100 via-purple-100 to-indigo-200 bg-clip-text text-transparent">
                 Tap 2 Rekt
               </h1>
-              <p className="text-sm text-slate-400 font-medium">
+              <p className="text-xs md:text-sm text-slate-400 font-medium hidden sm:block">
                 🚀 Gorbagana Testnet • 1v1 Speed Battles • Winner Takes All ⚡
+              </p>
+              <p className="text-xs text-slate-400 font-medium sm:hidden">
+                🚀 1v1 Speed Battles ⚡
               </p>
             </div>
           </div>
@@ -62,36 +65,37 @@ const Index = () => {
 
       {/* Stats Bar */}
       <div className="border-b border-slate-700/30 bg-gradient-to-r from-slate-800/60 to-slate-900/60 backdrop-blur-xl relative z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-4 py-2 backdrop-blur-sm">
-                <Target className="w-5 h-5 text-purple-400" />
+        <div className="container mx-auto px-4 py-3 md:py-4">
+          <div className="flex items-center justify-between text-xs md:text-sm">
+            <div className="flex items-center space-x-2 md:space-x-8 overflow-x-auto">
+              <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                <Target className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
                 <span className="text-slate-200 font-semibold">Battles: {playerStats.gamesPlayed}</span>
               </div>
-              <div className="flex items-center space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-4 py-2 backdrop-blur-sm">
-                <Trophy className="w-5 h-5 text-amber-400" />
+              <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                <Trophy className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
                 <span className="text-slate-200 font-semibold">Wins: {playerStats.totalWins}</span>
               </div>
-              <div className="flex items-center space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-4 py-2 backdrop-blur-sm">
-                <Timer className="w-5 h-5 text-indigo-400" />
-                <span className="text-slate-200 font-semibold">Best: {playerStats.bestScore} taps</span>
+              <div className="hidden sm:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                <Timer className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
+                <span className="text-slate-200 font-semibold">Best: {playerStats.bestScore}</span>
               </div>
-              <div className="flex items-center space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-4 py-2 backdrop-blur-sm">
-                <Zap className="w-5 h-5 text-emerald-400" />
+              <div className="hidden md:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                <Zap className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
                 <span className="text-slate-200 font-semibold">Earned: {playerStats.totalEarnings} GORB</span>
               </div>
             </div>
-            <div className="flex items-center space-x-3 bg-emerald-900/40 border border-emerald-600/30 rounded-full px-4 py-2 backdrop-blur-sm">
-              <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-emerald-300 text-sm font-bold">🔥 TAP RACE LIVE 🔥</span>
+            <div className="flex items-center space-x-2 md:space-x-3 bg-emerald-900/40 border border-emerald-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm">
+              <div className="w-2 h-2 md:w-3 md:h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+              <span className="text-emerald-300 text-xs md:text-sm font-bold hidden sm:block">🔥 TAP RACE LIVE 🔥</span>
+              <span className="text-emerald-300 text-xs font-bold sm:hidden">🔥 LIVE</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 relative z-10">
+      <main className="container mx-auto px-4 py-4 md:py-8 relative z-10">
         {currentView === 'hub' && (
           <TapRaceHub 
             onCreateMatch={() => {
@@ -108,18 +112,18 @@ const Index = () => {
         
         {currentView === 'practice' && (
           <div className="max-w-5xl mx-auto">
-            <div className="mb-8 flex items-center justify-between">
+            <div className="mb-4 md:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <Button 
                 variant="outline" 
                 onClick={() => setCurrentView('hub')}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm w-full sm:w-auto"
               >
                 ← Back to Hub
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => setCurrentView('leaderboard')}
-                className="border-amber-600/50 text-amber-300 hover:bg-amber-900/30 bg-slate-800/50 backdrop-blur-sm"
+                className="border-amber-600/50 text-amber-300 hover:bg-amber-900/30 bg-slate-800/50 backdrop-blur-sm w-full sm:w-auto"
               >
                 <Trophy className="w-4 h-4 mr-2" />
                 Leaderboard
@@ -131,11 +135,11 @@ const Index = () => {
 
         {currentView === 'leaderboard' && (
           <div className="max-w-5xl mx-auto">
-            <div className="mb-8">
+            <div className="mb-4 md:mb-8">
               <Button 
                 variant="outline" 
                 onClick={() => setCurrentView('hub')}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm w-full sm:w-auto"
               >
                 ← Back to Hub
               </Button>
@@ -146,27 +150,27 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-700/30 bg-slate-900/60 backdrop-blur-xl mt-20 relative z-10">
-        <div className="container mx-auto px-4 py-8 text-center">
+      <footer className="border-t border-slate-700/30 bg-slate-900/60 backdrop-blur-xl mt-10 md:mt-20 relative z-10">
+        <div className="container mx-auto px-4 py-6 md:py-8 text-center">
           <div className="mb-4">
-            <p className="text-xl font-bold bg-gradient-to-r from-slate-200 to-purple-200 bg-clip-text text-transparent">
+            <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-slate-200 to-purple-200 bg-clip-text text-transparent">
               🎯 Tap 2 Rekt - Gorbagana Testnet 🎯
             </p>
-            <p className="text-lg bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent font-semibold">
+            <p className="text-base md:text-lg bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent font-semibold">
               ⚡ 1v1 Speed Battles • Winner Takes All ⚡
             </p>
           </div>
           <p className="text-slate-400 text-sm mb-4 font-medium">
             Fast taps, faster transactions - powered by Gorbagana 💎
           </p>
-          <div className="flex justify-center space-x-3 text-xs">
-            <span className="bg-slate-800/60 border border-slate-600/30 px-4 py-2 rounded-full text-slate-300">
+          <div className="flex flex-wrap justify-center gap-2 md:gap-3 text-xs">
+            <span className="bg-slate-800/60 border border-slate-600/30 px-3 py-1 md:px-4 md:py-2 rounded-full text-slate-300">
               🎮 1v1 Battles
             </span>
-            <span className="bg-slate-800/60 border border-slate-600/30 px-4 py-2 rounded-full text-slate-300">
+            <span className="bg-slate-800/60 border border-slate-600/30 px-3 py-1 md:px-4 md:py-2 rounded-full text-slate-300">
               ⚡ Real-time Gaming
             </span>
-            <span className="bg-slate-800/60 border border-slate-600/30 px-4 py-2 rounded-full text-slate-300">
+            <span className="bg-slate-800/60 border border-slate-600/30 px-3 py-1 md:px-4 md:py-2 rounded-full text-slate-300">
               🏆 GORB Rewards
             </span>
           </div>

@@ -130,8 +130,6 @@ const MatchPage = () => {
     }
   };
 
-  // Removed handleGameComplete function - no auto-navigation
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
@@ -142,12 +140,12 @@ const MatchPage = () => {
 
   if (!match) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
-        <Card className="bg-slate-800/50 border-slate-700 max-w-md">
-          <CardContent className="p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center px-4">
+        <Card className="bg-slate-800/50 border-slate-700 max-w-md w-full">
+          <CardContent className="p-6 md:p-8 text-center">
             <div className="text-red-400 text-xl mb-4">Match Not Found</div>
             <div className="text-slate-400 mb-6">This match doesn't exist or has been removed.</div>
-            <Button onClick={() => navigate('/')} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+            <Button onClick={() => navigate('/')} className="bg-gradient-to-r from-purple-600 to-indigo-600 w-full">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Hub
             </Button>
@@ -169,11 +167,10 @@ const MatchPage = () => {
     console.log('Both players ready - showing REAL multiplayer game immediately');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-4 md:py-8">
           <RealTimeGame 
             matchId={matchId!}
             walletAddress={walletAddress!}
-            // Removed onGameComplete prop - no auto-navigation
           />
         </div>
       </div>
@@ -186,12 +183,12 @@ const MatchPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-4 md:py-8">
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <Button 
             variant="outline" 
             onClick={() => navigate('/')}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm w-full sm:w-auto"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Hub
@@ -200,7 +197,7 @@ const MatchPage = () => {
           <Button 
             variant="outline"
             onClick={handleCopyLink}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm w-full sm:w-auto"
           >
             {linkCopied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
             {linkCopied ? 'Copied!' : 'Copy Link'}
@@ -209,16 +206,16 @@ const MatchPage = () => {
 
         <div className="max-w-2xl mx-auto">
           {/* Battle Lobby Header */}
-          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl mb-6">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl text-slate-100 flex items-center justify-center mb-4">
-                <Target className="w-8 h-8 mr-3 text-purple-400" />
-                Real Battle Lobby
-                <Badge className="ml-3 bg-emerald-600">30s Battle</Badge>
+          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl mb-4 md:mb-6">
+            <CardHeader className="text-center p-4 md:p-6">
+              <CardTitle className="text-2xl md:text-3xl text-slate-100 flex flex-col md:flex-row items-center justify-center mb-4 gap-3">
+                <Target className="w-6 h-6 md:w-8 md:h-8 text-purple-400" />
+                <span>Real Battle Lobby</span>
+                <Badge className="bg-emerald-600">30s Battle</Badge>
               </CardTitle>
               <div className="flex items-center justify-center space-x-2">
-                <Clock className="w-5 h-5 text-slate-400" />
-                <span className="text-slate-300">
+                <Clock className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
+                <span className="text-sm md:text-base text-slate-300">
                   {isWaitingForOpponent ? 'Waiting for opponent...' : 'Ready for real battle!'}
                 </span>
               </div>
@@ -227,24 +224,24 @@ const MatchPage = () => {
 
           {/* Match Details */}
           <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="text-2xl text-slate-100 flex items-center justify-between">
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-xl md:text-2xl text-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center">
-                  <Target className="w-7 h-7 mr-3 text-purple-400" />
-                  Real 1v1 Multiplayer Battle
+                  <Target className="w-5 h-5 md:w-7 md:h-7 mr-3 text-purple-400" />
+                  <span className="text-base md:text-xl">Real 1v1 Multiplayer Battle</span>
                 </div>
-                <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
+                <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-sm md:text-lg px-3 py-1 md:px-4 md:py-2">
                   {match.wager * 2} GORB Prize
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
               
               {/* Players */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
                   <div className="text-sm text-slate-400 mb-1">Creator</div>
-                  <div className="text-slate-200 font-mono text-sm">
+                  <div className="text-slate-200 font-mono text-xs md:text-sm break-all">
                     {match.creator_wallet.slice(0, 8)}...{match.creator_wallet.slice(-6)}
                   </div>
                   {isCreator && <Badge className="mt-2 bg-purple-600">You</Badge>}
@@ -252,7 +249,7 @@ const MatchPage = () => {
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
                   <div className="text-sm text-slate-400 mb-1">Opponent</div>
-                  <div className="text-slate-200 font-mono text-sm">
+                  <div className="text-slate-200 font-mono text-xs md:text-sm break-all">
                     {match.opponent_wallet 
                       ? `${match.opponent_wallet.slice(0, 8)}...${match.opponent_wallet.slice(-6)}`
                       : 'Waiting for opponent...'
@@ -263,28 +260,28 @@ const MatchPage = () => {
               </div>
 
               {/* Match Info */}
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
                   <div className="flex items-center justify-center mb-2">
-                    <Coins className="w-5 h-5 text-amber-400" />
+                    <Coins className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
                   </div>
-                  <div className="text-lg font-bold text-white">{match.wager}</div>
+                  <div className="text-base md:text-lg font-bold text-white">{match.wager}</div>
                   <div className="text-xs text-slate-400">GORB Each</div>
                 </div>
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
                   <div className="flex items-center justify-center mb-2">
-                    <Users className="w-5 h-5 text-purple-400" />
+                    <Users className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
                   </div>
-                  <div className="text-lg font-bold text-white">1v1</div>
+                  <div className="text-base md:text-lg font-bold text-white">1v1</div>
                   <div className="text-xs text-slate-400">Real Players</div>
                 </div>
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
                   <div className="flex items-center justify-center mb-2">
-                    <Target className="w-5 h-5 text-indigo-400" />
+                    <Target className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
                   </div>
-                  <div className="text-lg font-bold text-white">30s</div>
+                  <div className="text-base md:text-lg font-bold text-white">30s</div>
                   <div className="text-xs text-slate-400">Duration</div>
                 </div>
               </div>
@@ -293,12 +290,12 @@ const MatchPage = () => {
               <div className="text-center space-y-4">
                 {canJoin && (
                   <>
-                    <div className="text-lg text-slate-200 mb-4">
+                    <div className="text-base md:text-lg text-slate-200 mb-4">
                       Ready to join this REAL multiplayer battle?
                     </div>
                     <Button 
                       onClick={handleJoinMatch}
-                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-lg font-bold py-4"
+                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-base md:text-lg font-bold py-3 md:py-4"
                     >
                       <Play className="w-5 h-5 mr-3" />
                       ⚡ JOIN REAL BATTLE ({match.wager} GORB)
@@ -308,10 +305,10 @@ const MatchPage = () => {
 
                 {isCreator && isWaitingForOpponent && (
                   <div className="text-center space-y-4">
-                    <div className="text-lg text-slate-200 mb-2">
+                    <div className="text-base md:text-lg text-slate-200 mb-2">
                       🔗 Share this link with your opponent for REAL multiplayer battle:
                     </div>
-                    <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-sm text-slate-300 font-mono break-all">
+                    <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-xs md:text-sm text-slate-300 font-mono break-all">
                       {window.location.href}
                     </div>
                     <div className="text-amber-400 text-sm flex items-center justify-center">

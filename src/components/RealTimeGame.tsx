@@ -297,7 +297,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const myFinalScore = finalScores[walletAddress] || tapCount;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Connection Status */}
       {gameState === 'active' && (
         <div className="flex justify-center">
@@ -309,32 +309,32 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
       {/* Match Info Header */}
       <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center justify-between">
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center">
-              <Target className="w-5 h-5 mr-2 text-purple-400" />
-              {gameState === 'finished' ? 'Battle Complete' : 'Real 1v1 Battle - LIVE'}
+              <Target className="w-4 h-4 md:w-5 md:h-5 mr-2 text-purple-400" />
+              <span className="text-base md:text-lg">{gameState === 'finished' ? 'Battle Complete' : 'Real 1v1 Battle - LIVE'}</span>
             </div>
-            <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
+            <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-sm md:text-lg px-3 py-1 md:px-4 md:py-2">
               {match.wager * 2} GORB Prize
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-8">
+        <CardContent className="p-4 md:p-6">
+          <div className="grid grid-cols-2 gap-4 md:gap-8">
             {/* Your Stats */}
             <PlayerStats tapCount={myFinalScore} />
             
             {/* Opponent Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-red-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Target className="w-8 h-8 text-white" />
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-red-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Target className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
-              <div className="text-lg font-bold text-red-300">
-                {opponentWallet ? `${opponentWallet.slice(0, 8)}...${opponentWallet.slice(-4)}` : 'Opponent'}
+              <div className="text-sm md:text-lg font-bold text-red-300 break-all">
+                {opponentWallet ? `${opponentWallet.slice(0, 6)}...${opponentWallet.slice(-4)}` : 'Opponent'}
               </div>
-              <div className="text-3xl font-bold text-white">{opponentTaps}</div>
-              <div className="text-sm text-slate-400">Taps</div>
+              <div className="text-2xl md:text-3xl font-bold text-white">{opponentTaps}</div>
+              <div className="text-xs md:text-sm text-slate-400">Taps</div>
               {gameState === 'finished' && winner && winner !== walletAddress && (
                 <Badge className="mt-2 bg-emerald-600">Winner!</Badge>
               )}
@@ -354,41 +354,47 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <div 
-            className={`${stateDisplay.bgColor} ${stateDisplay.textColor} min-h-[400px] flex flex-col items-center justify-center cursor-pointer transition-all duration-200 rounded-lg relative overflow-hidden`}
+            className={`${stateDisplay.bgColor} ${stateDisplay.textColor} min-h-[300px] md:min-h-[400px] flex flex-col items-center justify-center cursor-pointer transition-all duration-200 rounded-lg relative overflow-hidden`}
             onClick={gameState === 'active' ? handleTap : undefined}
           >
             {/* Tap Effects */}
             {gameState === 'active' && (
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white/20 rounded-full animate-ping"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-full animate-ping"></div>
               </div>
             )}
             
-            <div className="text-6xl font-bold mb-4">{stateDisplay.title}</div>
-            <div className="text-xl mb-4">{stateDisplay.subtitle}</div>
+            <div className="text-4xl md:text-6xl font-bold mb-4">{stateDisplay.title}</div>
+            <div className="text-lg md:text-xl mb-4 text-center px-4">{stateDisplay.subtitle}</div>
             
             {gameState === 'active' && (
-              <div className="flex items-center space-x-4 text-lg">
-                <Timer className="w-5 h-5" />
-                <span>Time: {timeLeft}s</span>
-                <Zap className="w-5 h-5 ml-6" />
-                <span>Taps: {tapCount}</span>
-                <Users className="w-5 h-5 ml-6" />
-                <span>Opponent: {opponentTaps}</span>
+              <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 text-sm md:text-lg px-4">
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Timer className="w-4 h-4 md:w-5 md:h-5" />
+                  <span>Time: {timeLeft}s</span>
+                </div>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Zap className="w-4 h-4 md:w-5 md:h-5" />
+                  <span>Taps: {tapCount}</span>
+                </div>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <Users className="w-4 h-4 md:w-5 md:h-5" />
+                  <span>Opponent: {opponentTaps}</span>
+                </div>
               </div>
             )}
 
             {gameState === 'finished' && (
-              <div className="text-lg mt-4 bg-white/20 rounded-lg px-6 py-3 text-center">
+              <div className="text-sm md:text-lg mt-4 bg-white/20 rounded-lg px-4 md:px-6 py-3 text-center mx-4">
                 {winner ? (
                   <div>
                     <div className="mb-2">Battle Complete!</div>
                     <div>Winner: {winner === walletAddress ? 'YOU!' : `${winner.slice(0, 8)}...`}</div>
-                    <div className="text-sm mt-2">
+                    <div className="text-xs md:text-sm mt-2">
                       Final Score: {myFinalScore} vs {opponentTaps}
                     </div>
                     {winner === walletAddress && (
-                      <div className="text-sm mt-2 text-emerald-200">
+                      <div className="text-xs md:text-sm mt-2 text-emerald-200">
                         You won {match.wager * 2} GORB! 💰
                       </div>
                     )}
@@ -407,25 +413,25 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       {/* Updated Player Stats Display */}
       {gameState === 'finished' && playerStats && showPostGame && (
         <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
+          <CardHeader className="p-4 md:p-6">
             <CardTitle className="text-white flex items-center">
-              <Trophy className="w-5 h-5 mr-2 text-amber-400" />
-              Updated Battle Stats
+              <Trophy className="w-4 h-4 md:w-5 md:h-5 mr-2 text-amber-400" />
+              <span className="text-base md:text-lg">Updated Battle Stats</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
+          <CardContent className="p-4 md:p-6">
+            <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
               <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-                <div className="text-2xl font-bold text-purple-300">{playerStats.total_battles || 0}</div>
-                <div className="text-sm text-slate-400">Total Battles</div>
+                <div className="text-xl md:text-2xl font-bold text-purple-300">{playerStats.total_battles || 0}</div>
+                <div className="text-xs md:text-sm text-slate-400">Total Battles</div>
               </div>
               <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-                <div className="text-2xl font-bold text-amber-300">{playerStats.total_victories || 0}</div>
-                <div className="text-sm text-slate-400">Victories</div>
+                <div className="text-xl md:text-2xl font-bold text-amber-300">{playerStats.total_victories || 0}</div>
+                <div className="text-xs md:text-sm text-slate-400">Victories</div>
               </div>
               <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-                <div className="text-2xl font-bold text-indigo-300">{playerStats.best_tap_count || 0}</div>
-                <div className="text-sm text-slate-400">Best Score</div>
+                <div className="text-xl md:text-2xl font-bold text-indigo-300">{playerStats.best_tap_count || 0}</div>
+                <div className="text-xs md:text-sm text-slate-400">Best Score</div>
               </div>
             </div>
           </CardContent>
@@ -433,19 +439,19 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       )}
 
       {/* Action Buttons */}
-      <div className="flex justify-center space-x-4">
+      <div className="flex flex-col sm:flex-row justify-center gap-4">
         {gameState === 'finished' && showPostGame ? (
           <>
             <Button 
               onClick={handlePlayAgain}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 w-full sm:w-auto"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Play Again
             </Button>
             <Button 
               onClick={() => navigate('/')}
-              className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800"
+              className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Hub
@@ -454,7 +460,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         ) : (
           <Button 
             onClick={() => navigate('/')}
-            className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800"
+            className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Hub
