@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +6,7 @@ import CreateBattleForm from './CreateBattleForm';
 import CreateBattleModal from './CreateBattleModal';
 import ActiveMatches from './ActiveMatches';
 import { useState } from 'react';
+import { useWalletAddress } from '@/hooks/useWalletAddress';
 
 interface TapRaceHubProps {
   onCreateMatch: () => void;
@@ -22,8 +22,7 @@ interface TapRaceHubProps {
 
 const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats }: TapRaceHubProps) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  // Mock wallet address - in real app this would come from wallet connection
-  const walletAddress = 'GorBMockWallet123456789';
+  const { walletAddress } = useWalletAddress();
 
   const handleBattleCreated = (matchId: string) => {
     console.log('Battle created with ID:', matchId);
@@ -176,13 +175,12 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, playerStats
       <CreateBattleModal 
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        walletAddress={walletAddress}
         onBattleCreated={handleBattleCreated}
       />
 
       {/* Active Matches */}
       <ActiveMatches 
-        walletAddress={walletAddress}
+        walletAddress={walletAddress || ''}
         onJoinMatch={handleJoinMatch}
       />
 
