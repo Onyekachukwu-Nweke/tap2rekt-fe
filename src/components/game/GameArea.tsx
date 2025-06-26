@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Target } from 'lucide-react';
 
 interface GameAreaProps {
-  gameState: 'lobby' | 'countdown' | 'active' | 'finished';
+  gameState: 'loading' | 'countdown' | 'active' | 'finished';
   onTap: () => void;
 }
 

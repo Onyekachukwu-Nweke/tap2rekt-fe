@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -71,44 +70,13 @@ export const useMatches = () => {
         .from('player_stats')
         .select('*')
         .eq('wallet_address', walletAddress)
-        .maybeSingle(); // Use maybeSingle() instead of single() to handle no results gracefully
+        .single();
 
-      if (error) {
-        console.error('Error fetching player stats:', error);
-        // Return default stats if none exist yet
-        return {
-          id: '',
-          wallet_address: walletAddress,
-          total_battles: 0,
-          total_victories: 0,
-          best_tap_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-      }
-      
-      // Return data or default stats if no data found
-      return data || {
-        id: '',
-        wallet_address: walletAddress,
-        total_battles: 0,
-        total_victories: 0,
-        best_tap_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as PlayerStats || null;
     } catch (error) {
       console.error('Error fetching player stats:', error);
-      // Return default stats on any error
-      return {
-        id: '',
-        wallet_address: walletAddress,
-        total_battles: 0,
-        total_victories: 0,
-        best_tap_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      return null;
     }
   };
 
@@ -223,19 +191,6 @@ export const useMatches = () => {
     try {
       console.log('Submitting tap result:', { matchId, walletAddress, score });
       
-      // First, check if this player already submitted a result
-      const { data: existingResult } = await supabase
-        .from('tap_results')
-        .select('*')
-        .eq('match_id', matchId)
-        .eq('wallet_address', walletAddress)
-        .maybeSingle();
-
-      if (existingResult) {
-        console.log('Result already submitted for this player');
-        return existingResult;
-      }
-
       const { data, error } = await supabase
         .from('tap_results')
         .insert([{
@@ -261,9 +216,7 @@ export const useMatches = () => {
       if (allResults && allResults.length === 2) {
         // Determine winner and complete match
         const [result1, result2] = allResults;
-        const winner = result1.score > result2.score ? result1.wallet_address : 
-                      result2.score > result1.score ? result2.wallet_address : 
-                      null; // Handle ties
+        const winner = result1.score > result2.score ? result1.wallet_address : result2.wallet_address;
 
         console.log('Both players finished, determining winner:', winner);
 
@@ -276,11 +229,8 @@ export const useMatches = () => {
           })
           .eq('id', matchId);
 
-        const winnerText = winner === walletAddress ? "🎉 Victory!" : 
-                          winner === null ? "🤝 Tie Game!" : "💀 Defeat";
-        
         toast({
-          title: winnerText,
+          title: winner === walletAddress ? "🎉 Victory!" : "💀 Defeat",
           description: `Final scores: ${result1.score} vs ${result2.score}`,
         });
       }
