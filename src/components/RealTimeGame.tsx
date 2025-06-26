@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,12 +22,11 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [tapCount, setTapCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [countdownTime, setCountdownTime] = useState(3);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [finalScores, setFinalScores] = useState<{[key: string]: number}>({});
   const [showPostGame, setShowPostGame] = useState(false);
   const [playerStats, setPlayerStats] = useState<any>(null);
-  const [isSubmittingResult, setIsSubmittingResult] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'submitted' | 'failed'>('idle');
   const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
   const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
@@ -92,6 +90,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         
         setGameState('finished');
         setShowPostGame(true);
+        setSubmissionStatus('submitted');
       }
     } catch (error) {
       console.error('Error loading completed match data:', error);
@@ -113,7 +112,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     setGameState('countdown');
     setTapCount(0);
     setTimeLeft(30);
-    setHasSubmitted(false);
     
     // Start the countdown timer
     let countdown = 3;
@@ -203,21 +201,29 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   }, [gameState, tapCount, sendTapUpdate]);
 
   const endGame = async () => {
-    if (hasSubmitted || isSubmittingResult) return;
+    // Prevent multiple submissions
+    if (submissionStatus !== 'idle') {
+      console.log('Submission already in progress or completed, status:', submissionStatus);
+      return;
+    }
     
-    console.log('Game ended, submitting score:', tapCount);
+    console.log('=== GAME ENDING ===');
+    console.log('Final score:', tapCount);
+    console.log('Submission status:', submissionStatus);
+    
     setGameState('finished');
-    setHasSubmitted(true);
-    setIsSubmittingResult(true);
+    setSubmissionStatus('submitting');
 
     // Create a simple signature (in real app, use wallet.signMessage)
     const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
     const signature = btoa(message); // Mock signature - replace with real wallet signing
 
     try {
-      console.log('Submitting tap result...');
-      await submitTapResult(matchId, walletAddress, tapCount, signature);
-      console.log('Score submitted successfully');
+      console.log('Calling submitTapResult...');
+      const result = await submitTapResult(matchId, walletAddress, tapCount, signature);
+      console.log('submitTapResult completed:', result);
+      
+      setSubmissionStatus('submitted');
       
       // Wait a moment for the database to update, then reload player stats
       setTimeout(async () => {
@@ -227,12 +233,11 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         } catch (error) {
           console.error('Error reloading player stats:', error);
         }
-      }, 1000);
+      }, 2000);
       
     } catch (error) {
       console.error('Failed to submit result:', error);
-    } finally {
-      setIsSubmittingResult(false);
+      setSubmissionStatus('failed');
     }
 
     if (onGameComplete) {
@@ -269,19 +274,31 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         };
       case 'finished':
         const isWinner = winner === walletAddress;
+        let title = '';
+        
+        if (submissionStatus === 'submitting') {
+          title = '⏳ Submitting...';
+        } else if (submissionStatus === 'failed') {
+          title = '❌ Submission Failed';
+        } else if (winner) {
+          title = isWinner ? '🎉 Victory!' : '💀 Defeat';
+        } else {
+          title = submissionStatus === 'submitted' ? '⏳ Waiting for opponent...' : 'Game Complete!';
+        }
+        
         return {
-          title: winner ? (isWinner ? '🎉 Victory!' : '💀 Defeat') : (isSubmittingResult ? 'Submitting...' : 'Game Complete!'),
+          title,
           subtitle: `Your score: ${finalScores[walletAddress] || tapCount} taps`,
           bgColor: winner ? (isWinner 
             ? 'bg-gradient-to-br from-emerald-500 to-green-600'
             : 'bg-gradient-to-br from-red-500 to-pink-600')
-            : 'bg-gradient-to-br from-purple-500 to-indigo-600',
+            : submissionStatus === 'failed' 
+              ? 'bg-gradient-to-br from-red-500 to-pink-600'
+              : 'bg-gradient-to-br from-purple-500 to-indigo-600',
           textColor: 'text-white'
         };
     }
   };
-
-  const stateDisplay = getGameStateDisplay();
 
   if (!match) {
     return (
@@ -331,7 +348,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                 <Target className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div className="text-sm md:text-lg font-bold text-red-300 break-all">
-                {opponentWallet ? `${opponentWallet.slice(0, 6)}...${opponentWallet.slice(-4)}` : 'Opponent'}
+                {isCreator ? 
+                  (match.opponent_wallet ? `${match.opponent_wallet.slice(0, 6)}...${match.opponent_wallet.slice(-4)}` : 'Opponent') :
+                  `${match.creator_wallet.slice(0, 6)}...${match.creator_wallet.slice(-4)}`
+                }
               </div>
               <div className="text-2xl md:text-3xl font-bold text-white">{opponentTaps}</div>
               <div className="text-xs md:text-sm text-slate-400">Taps</div>
@@ -386,12 +406,27 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
             {gameState === 'finished' && (
               <div className="text-sm md:text-lg mt-4 bg-white/20 rounded-lg px-4 md:px-6 py-3 text-center mx-4">
-                {winner ? (
+                {submissionStatus === 'submitting' && (
+                  <div>⏳ Submitting your score...</div>
+                )}
+                {submissionStatus === 'failed' && (
+                  <div>
+                    <div className="mb-2">❌ Failed to submit score</div>
+                    <Button 
+                      onClick={endGame}
+                      size="sm"
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Retry Submission
+                    </Button>
+                  </div>
+                )}
+                {submissionStatus === 'submitted' && winner && (
                   <div>
                     <div className="mb-2">Battle Complete!</div>
                     <div>Winner: {winner === walletAddress ? 'YOU!' : `${winner.slice(0, 8)}...`}</div>
                     <div className="text-xs md:text-sm mt-2">
-                      Final Score: {myFinalScore} vs {opponentTaps}
+                      Final Score: {finalScores[walletAddress] || tapCount} vs {opponentTaps}
                     </div>
                     {winner === walletAddress && (
                       <div className="text-xs md:text-sm mt-2 text-emerald-200">
@@ -399,10 +434,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div>
-                    {isSubmittingResult ? '⏳ Submitting results...' : '🎮 Waiting for results...'}
-                  </div>
+                )}
+                {submissionStatus === 'submitted' && !winner && (
+                  <div>⏳ Waiting for opponent to finish...</div>
                 )}
               </div>
             )}
@@ -411,7 +445,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       </Card>
 
       {/* Updated Player Stats Display */}
-      {gameState === 'finished' && playerStats && showPostGame && (
+      {gameState === 'finished' && playerStats && showPostGame && winner && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader className="p-4 md:p-6">
             <CardTitle className="text-white flex items-center">
@@ -440,7 +474,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row justify-center gap-4">
-        {gameState === 'finished' && showPostGame ? (
+        {gameState === 'finished' && winner && (
           <>
             <Button 
               onClick={handlePlayAgain}
@@ -457,7 +491,17 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               Back to Hub
             </Button>
           </>
-        ) : (
+        )}
+        {gameState === 'finished' && submissionStatus === 'failed' && (
+          <Button 
+            onClick={() => navigate('/')}
+            className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Hub
+          </Button>
+        )}
+        {(gameState === 'loading' || gameState === 'countdown' || gameState === 'active') && (
           <Button 
             onClick={() => navigate('/')}
             className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
