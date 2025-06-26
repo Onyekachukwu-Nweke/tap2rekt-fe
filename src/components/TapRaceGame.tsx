@@ -14,7 +14,7 @@ interface TapRaceGameProps {
 const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
   const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
   const [countdownTime, setCountdownTime] = useState(3);
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [tapCount, setTapCount] = useState(0);
 
   const startGame = useCallback(() => {
@@ -50,7 +50,7 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
   const resetGame = useCallback(() => {
     setGameState('loading');
     setCountdownTime(3);
-    setTimeLeft(10);
+    setTimeLeft(30);
     setTapCount(0);
   }, []);
 
