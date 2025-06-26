@@ -94,14 +94,19 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 relative z-10">
         {currentView === 'hub' && (
           <TapRaceHub 
-            onCreateMatch={() => setCurrentView('game')}
-            onJoinMatch={() => setCurrentView('game')}
+            onCreateMatch={() => {
+              // Navigation handled by hub itself through react-router
+            }}
+            onJoinMatch={() => {
+              // Navigation handled by hub itself through react-router
+            }}
             onViewLeaderboard={() => setCurrentView('leaderboard')}
+            onPracticeMode={() => setCurrentView('practice')}
             playerStats={playerStats}
           />
         )}
         
-        {currentView === 'game' && (
+        {currentView === 'practice' && (
           <div className="max-w-5xl mx-auto">
             <div className="mb-8 flex items-center justify-between">
               <Button 
