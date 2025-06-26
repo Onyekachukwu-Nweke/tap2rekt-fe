@@ -12,23 +12,9 @@ interface TapRaceGameProps {
 const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
   const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'active' | 'finished'>('lobby');
   const [tapCount, setTapCount] = useState(0);
-  const [opponentTaps, setOpponentTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
   const [countdownTime, setCountdownTime] = useState(3);
   const [wager, setWager] = useState(10);
-  const [opponent] = useState('TapMaster99'); // Mock opponent
-  const [winner, setWinner] = useState<'player' | 'opponent' | null>(null);
-
-  // Simulate opponent tapping
-  useEffect(() => {
-    if (gameState === 'active') {
-      const interval = setInterval(() => {
-        setOpponentTaps(prev => prev + Math.floor(Math.random() * 3) + 1);
-      }, 200 + Math.random() * 300);
-      
-      return () => clearInterval(interval);
-    }
-  }, [gameState]);
 
   // Game timer
   useEffect(() => {
@@ -60,7 +46,6 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
     setGameState('countdown');
     setCountdownTime(3);
     setTapCount(0);
-    setOpponentTaps(0);
     setTimeLeft(10);
   };
 
@@ -72,27 +57,23 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
 
   const endGame = () => {
     setGameState('finished');
-    const playerWon = tapCount > opponentTaps;
-    setWinner(playerWon ? 'player' : 'opponent');
-    const earnings = playerWon ? wager * 2 : 0;
-    onGameComplete(tapCount, playerWon, earnings);
+    // For single player mode, always consider it a win
+    onGameComplete(tapCount, true, wager);
   };
 
   const resetGame = () => {
     setGameState('lobby');
     setTapCount(0);
-    setOpponentTaps(0);
     setTimeLeft(10);
     setCountdownTime(3);
-    setWinner(null);
   };
 
   const getGameStateDisplay = () => {
     switch (gameState) {
       case 'lobby':
         return {
-          title: '⚔️ Battle Ready!',
-          subtitle: `Facing ${opponent} • ${wager} GORB each`,
+          title: '🎯 Practice Mode',
+          subtitle: 'Single player tap challenge',
           bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
           textColor: 'text-white'
         };
@@ -112,11 +93,9 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
         };
       case 'finished':
         return {
-          title: winner === 'player' ? '🎉 VICTORY!' : '💀 DEFEAT',
-          subtitle: `You: ${tapCount} vs ${opponent}: ${opponentTaps}`,
-          bgColor: winner === 'player' 
-            ? 'bg-gradient-to-br from-emerald-500 to-green-600' 
-            : 'bg-gradient-to-br from-red-500 to-red-600',
+          title: '🎉 Complete!',
+          subtitle: `Your score: ${tapCount} taps`,
+          bgColor: 'bg-gradient-to-br from-emerald-500 to-green-600',
           textColor: 'text-white'
         };
     }
@@ -132,15 +111,15 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
           <CardTitle className="text-white flex items-center justify-between">
             <div className="flex items-center">
               <Target className="w-5 h-5 mr-2 text-purple-400" />
-              Tap Race Battle
+              Practice Mode
             </div>
-            <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
-              {wager * 2} GORB Prize
+            <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-lg px-4 py-2">
+              Solo Challenge
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="flex justify-center">
             {/* Player Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -148,16 +127,6 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
               </div>
               <div className="text-lg font-bold text-purple-300">You</div>
               <div className="text-3xl font-bold text-white">{tapCount}</div>
-              <div className="text-sm text-slate-400">Taps</div>
-            </div>
-            
-            {/* Opponent Stats */}
-            <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-red-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Target className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-lg font-bold text-red-300">{opponent}</div>
-              <div className="text-3xl font-bold text-white">{opponentTaps}</div>
               <div className="text-sm text-slate-400">Taps</div>
             </div>
           </div>
@@ -190,9 +159,9 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
               </div>
             )}
 
-            {gameState === 'finished' && winner === 'player' && (
+            {gameState === 'finished' && (
               <div className="text-lg mt-4 bg-white/20 rounded-lg px-6 py-3">
-                🎉 You won {wager * 2} GORB! 🎉
+                🎯 Practice Complete!
               </div>
             )}
           </div>
@@ -207,7 +176,7 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
             className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold px-8 py-4"
           >
             <Zap className="w-5 h-5 mr-2" />
-            Start Battle!
+            Start Practice!
           </Button>
         )}
         
@@ -218,14 +187,7 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg font-bold px-8 py-4"
             >
               <Trophy className="w-5 h-5 mr-2" />
-              Battle Again
-            </Button>
-            <Button 
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700 text-lg font-bold px-8 py-4"
-            >
-              <Coins className="w-5 h-5 mr-2" />
-              Change Wager
+              Practice Again
             </Button>
           </div>
         )}
@@ -236,20 +198,20 @@ const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
         <CardContent className="p-6">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center">
             <Target className="w-5 h-5 mr-2 text-purple-400" />
-            How to Play
+            Practice Mode
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-300">
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-              <div className="font-semibold text-purple-400 mb-2">1. Battle Starts</div>
-              <div>3-second countdown begins the tapping battle</div>
+              <div className="font-semibold text-purple-400 mb-2">1. Get Ready</div>
+              <div>3-second countdown to prepare</div>
             </div>
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
               <div className="font-semibold text-amber-400 mb-2">2. Tap Fast</div>
               <div>Click/tap as fast as possible for 10 seconds</div>
             </div>
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-              <div className="font-semibold text-emerald-400 mb-2">3. Winner Takes All</div>
-              <div>Highest tap count wins the entire prize pool</div>
+              <div className="font-semibold text-emerald-400 mb-2">3. Practice</div>
+              <div>Build your speed for real battles!</div>
             </div>
           </div>
         </CardContent>

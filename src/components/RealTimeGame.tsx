@@ -21,6 +21,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [timeLeft, setTimeLeft] = useState(10);
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const { getMatch, submitTapResult, getTapResults } = useMatches();
 
   // Load match data
@@ -32,19 +33,51 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       console.log('RealTimeGame loaded match:', matchData);
       
       // Start countdown immediately when both players are present
-      if (matchData?.status === 'in_progress' && matchData?.opponent_wallet && matchData?.creator_wallet) {
-        console.log('Both players ready, starting countdown');
-        setGameState('countdown');
+      if (matchData?.status === 'in_progress' && 
+          matchData?.opponent_wallet && 
+          matchData?.creator_wallet &&
+          gameState === 'waiting') {
+        console.log('Both players ready, starting synchronized countdown');
+        startSynchronizedCountdown();
       }
     };
     loadMatch();
   }, [matchId, getMatch]);
 
-  // Real-time subscriptions for tap results only
+  // Real-time subscriptions for match updates and tap results
   useEffect(() => {
     if (!matchId) return;
 
-    // Subscribe to tap results to show opponent's progress
+    // Subscribe to match updates for game state synchronization
+    const matchChannel = supabase
+      .channel(`match-updates-${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'matches',
+          filter: `id=eq.${matchId}`
+        },
+        (payload) => {
+          const updatedMatch = payload.new;
+          setMatch(updatedMatch);
+          
+          console.log('Match updated in RealTimeGame:', updatedMatch);
+          
+          // Start synchronized countdown when both players join
+          if (updatedMatch.status === 'in_progress' && 
+              updatedMatch.opponent_wallet && 
+              updatedMatch.creator_wallet && 
+              gameState === 'waiting') {
+            console.log('Starting synchronized countdown for both players');
+            startSynchronizedCountdown();
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to tap results to show opponent's real-time progress
     const resultsChannel = supabase
       .channel(`results-${matchId}`)
       .on(
@@ -57,36 +90,57 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         },
         (payload) => {
           const result = payload.new;
-          console.log('New tap result:', result);
+          console.log('New tap result received:', result);
           
           // Only update opponent taps if it's not from current player
           if (result.wallet_address !== walletAddress) {
             setOpponentTaps(result.score);
-            console.log('Opponent final score:', result.score);
+            console.log('Opponent final score updated:', result.score);
           }
         }
       )
       .subscribe();
 
     return () => {
+      supabase.removeChannel(matchChannel);
       supabase.removeChannel(resultsChannel);
     };
-  }, [matchId, walletAddress]);
+  }, [matchId, walletAddress, gameState]);
 
-  // Countdown timer
+  const startSynchronizedCountdown = () => {
+    console.log('Starting synchronized countdown');
+    setGameState('countdown');
+    setCountdownTime(3);
+    setTapCount(0);
+    setOpponentTaps(0);
+    setTimeLeft(10);
+    setHasSubmitted(false);
+    
+    // Set a synchronized start time
+    const startTime = Date.now() + 3000; // 3 seconds from now
+    setGameStartTime(startTime);
+  };
+
+  // Synchronized countdown timer
   useEffect(() => {
-    if (gameState === 'countdown' && countdownTime > 0) {
-      const timer = setTimeout(() => {
-        setCountdownTime(prev => prev - 1);
-      }, 1000);
+    if (gameState === 'countdown' && gameStartTime) {
+      const interval = setInterval(() => {
+        const now = Date.now();
+        const remaining = Math.max(0, Math.ceil((gameStartTime - now) / 1000));
+        
+        if (remaining > 0) {
+          setCountdownTime(remaining);
+        } else {
+          console.log('Countdown finished, starting game');
+          setGameState('active');
+          setTimeLeft(10);
+          clearInterval(interval);
+        }
+      }, 100); // Check every 100ms for smooth countdown
       
-      return () => clearTimeout(timer);
-    } else if (gameState === 'countdown' && countdownTime === 0) {
-      console.log('Countdown finished, starting game');
-      setGameState('active');
-      setTimeLeft(10);
+      return () => clearInterval(interval);
     }
-  }, [gameState, countdownTime]);
+  }, [gameState, gameStartTime]);
 
   // Game timer
   useEffect(() => {
@@ -134,8 +188,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     switch (gameState) {
       case 'waiting':
         return {
-          title: '⏳ Preparing Game',
-          subtitle: 'Both players connected, get ready!',
+          title: '⏳ Synchronizing Game',
+          subtitle: 'Waiting for both players to connect...',
           bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
           textColor: 'text-white'
         };
@@ -167,14 +221,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   if (!match) {
     return (
-      <div className="text-center py-8">
-        <div className="text-slate-400">Loading match...</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
+        <div className="text-slate-400 text-xl">Loading match...</div>
       </div>
     );
   }
 
   const isCreator = match.creator_wallet === walletAddress;
-  const opponent = isCreator ? match.opponent_wallet : match.creator_wallet;
+  const opponentWallet = isCreator ? match.opponent_wallet : match.creator_wallet;
 
   return (
     <div className="space-y-6">
@@ -203,13 +257,13 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               <div className="text-sm text-slate-400">Taps</div>
             </div>
             
-            {/* Opponent Stats */}
+            {/* Real Opponent Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
               <div className="w-16 h-16 bg-gradient-to-r from-red-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Target className="w-8 h-8 text-white" />
               </div>
               <div className="text-lg font-bold text-red-300">
-                {opponent ? `${opponent.slice(0, 8)}...${opponent.slice(-4)}` : 'Opponent'}
+                {opponentWallet ? `${opponentWallet.slice(0, 8)}...${opponentWallet.slice(-4)}` : 'Opponent'}
               </div>
               <div className="text-3xl font-bold text-white">{opponentTaps}</div>
               <div className="text-sm text-slate-400">Taps</div>
