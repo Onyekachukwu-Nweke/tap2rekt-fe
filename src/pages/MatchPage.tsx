@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
 import { supabase } from '@/integrations/supabase/client';
-import RealTimeGame from '@/components/RealTimeGame';
+import WebSocketBattleGame from '@/components/WebSocketBattleGame';
 
 const MatchPage = () => {
   const { matchId } = useParams();
@@ -175,26 +174,16 @@ const MatchPage = () => {
     );
   }
 
-  // Show the game interface when game has started
+  // Show the WebSocket game interface when game has started
   if (gameStarted && match.status === 'in_progress' && match.opponent_wallet && match.creator_wallet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-8">
-          <div className="mb-6">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/')}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-slate-800/50 backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Hub
-            </Button>
-          </div>
-          
-          <RealTimeGame 
+          <WebSocketBattleGame 
             matchId={matchId!}
             walletAddress={walletAddress!}
-            onGameComplete={handleGameComplete}
+            match={match}
+            onBack={() => navigate('/')}
           />
         </div>
       </div>
