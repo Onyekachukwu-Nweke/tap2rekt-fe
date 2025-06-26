@@ -26,6 +26,16 @@ interface TapResult {
   submitted_at: string;
 }
 
+interface PlayerStats {
+  id: string;
+  wallet_address: string;
+  total_battles: number;
+  total_victories: number;
+  best_tap_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export const useMatches = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +61,59 @@ export const useMatches = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getPlayerStats = async (walletAddress: string): Promise<PlayerStats | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as PlayerStats || null;
+    } catch (error) {
+      console.error('Error fetching player stats:', error);
+      return null;
+    }
+  };
+
+  const getCompletedMatches = async (walletAddress: string): Promise<Match[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('status', 'completed')
+        .or(`creator_wallet.eq.${walletAddress},opponent_wallet.eq.${walletAddress}`)
+        .order('completed_at', { ascending: false });
+
+      if (error) throw error;
+      return data as Match[] || [];
+    } catch (error) {
+      console.error('Error fetching completed matches:', error);
+      return [];
+    }
+  };
+
+  const getMatchWithResults = async (matchId: string) => {
+    try {
+      const [matchResult, tapResultsResult] = await Promise.all([
+        supabase.from('matches').select('*').eq('id', matchId).single(),
+        supabase.from('tap_results').select('*').eq('match_id', matchId)
+      ]);
+
+      if (matchResult.error) throw matchResult.error;
+      if (tapResultsResult.error) throw tapResultsResult.error;
+
+      return {
+        match: matchResult.data,
+        tapResults: tapResultsResult.data
+      };
+    } catch (error) {
+      console.error('Error fetching match with results:', error);
+      return null;
     }
   };
 
@@ -247,6 +310,9 @@ export const useMatches = () => {
     submitTapResult,
     getMatch,
     getTapResults,
+    getPlayerStats,
+    getCompletedMatches,
+    getMatchWithResults,
     refetch: fetchMatches
   };
 };

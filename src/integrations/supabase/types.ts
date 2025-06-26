@@ -51,6 +51,36 @@ export type Database = {
         }
         Relationships: []
       }
+      player_stats: {
+        Row: {
+          best_tap_count: number
+          created_at: string
+          id: string
+          total_battles: number
+          total_victories: number
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          best_tap_count?: number
+          created_at?: string
+          id?: string
+          total_battles?: number
+          total_victories?: number
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          best_tap_count?: number
+          created_at?: string
+          id?: string
+          total_battles?: number
+          total_victories?: number
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       tap_results: {
         Row: {
           id: string
