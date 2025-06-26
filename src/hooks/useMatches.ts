@@ -229,90 +229,80 @@ export const useMatches = () => {
     try {
       console.log('Submitting tap result for match:', matchId, 'wallet:', walletAddress, 'score:', score);
 
-      // Check if this player already submitted a result
-      const { data: existingResult, error: checkError } = await supabase
+      // Step 1: Submit the tap result (idempotent operation)
+      const { data: tapResult, error: tapError } = await supabase
         .from('tap_results')
-        .select('*')
-        .eq('match_id', matchId)
-        .eq('wallet_address', walletAddress)
-        .limit(1)
-        .maybeSingle();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing result:', checkError);
-        throw new Error(`Failed to check existing result: ${checkError.message}`);
-      }
-
-      if (existingResult) {
-        console.log('Result already exists, returning existing result');
-        return existingResult;
-      }
-
-      // Submit new result
-      const { data: newResult, error: insertError } = await supabase
-        .from('tap_results')
-        .insert([{
+        .upsert({
           match_id: matchId,
           wallet_address: walletAddress,
           score: score,
           signature: signature,
           timestamp: new Date().toISOString()
-        }])
+        }, {
+          onConflict: 'match_id,wallet_address',
+          ignoreDuplicates: false
+        })
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Error inserting tap result:', insertError);
-        throw new Error(`Failed to submit result: ${insertError.message}`);
+      if (tapError) {
+        console.error('Error submitting tap result:', tapError);
+        throw new Error(`Failed to submit result: ${tapError.message}`);
       }
 
-      console.log('Successfully submitted tap result:', newResult);
+      console.log('Tap result submitted successfully:', tapResult);
 
-      // Check if both players have submitted results
+      // Step 2: Check if both players have submitted (use a transaction-like approach)
       const { data: allResults, error: resultsError } = await supabase
         .from('tap_results')
-        .select('*')
+        .select('wallet_address, score')
         .eq('match_id', matchId);
 
       if (resultsError) {
         console.error('Error fetching all results:', resultsError);
-        // Don't throw here - the result was submitted successfully
-        return newResult;
+        return tapResult;
       }
 
+      // Step 3: If both players submitted, try to complete the match (only one will succeed)
       if (allResults && allResults.length === 2) {
-        console.log('Both players submitted, determining winner');
-        // Determine winner and complete match
+        console.log('Both players submitted, attempting to complete match');
+        
+        // Determine winner
         const [result1, result2] = allResults;
         const winner = result1.score > result2.score ? result1.wallet_address : 
                       result2.score > result1.score ? result2.wallet_address : 
                       null; // Handle ties
 
-        const { error: updateError } = await supabase
+        // Try to update match status - only one player will succeed due to status check
+        const { data: updatedMatch, error: updateError } = await supabase
           .from('matches')
           .update({
             status: 'completed',
             winner_wallet: winner,
             completed_at: new Date().toISOString()
           })
-          .eq('id', matchId);
+          .eq('id', matchId)
+          .eq('status', 'in_progress') // This ensures only one update succeeds
+          .select()
+          .maybeSingle();
 
         if (updateError) {
-          console.error('Error updating match status:', updateError);
-          // Don't throw here - the result was still submitted successfully
+          console.log('Match already completed by other player or update failed:', updateError.message);
+        } else if (updatedMatch) {
+          console.log('Match completed successfully:', updatedMatch);
+          
+          // Clear player stats cache for both players
+          result1.wallet_address && playerStatsCache.delete(result1.wallet_address);
+          result2.wallet_address && playerStatsCache.delete(result2.wallet_address);
+
+          const winnerText = winner === walletAddress ? "🎉 Victory!" : 
+                            winner === null ? "🤝 Tie Game!" : "💀 Defeat";
+          
+          toast({
+            title: winnerText,
+            description: `Final scores: ${result1.score} vs ${result2.score}`,
+          });
         }
-
-        // Clear player stats cache for both players to force refresh
-        playerStatsCache.delete(result1.wallet_address);
-        playerStatsCache.delete(result2.wallet_address);
-
-        const winnerText = winner === walletAddress ? "🎉 Victory!" : 
-                          winner === null ? "🤝 Tie Game!" : "💀 Defeat";
-        
-        toast({
-          title: winnerText,
-          description: `Final scores: ${result1.score} vs ${result2.score}`,
-        });
       } else {
         toast({
           title: "✅ Score Submitted!",
@@ -320,7 +310,7 @@ export const useMatches = () => {
         });
       }
 
-      return newResult;
+      return tapResult;
     } catch (error) {
       console.error('Tap result submission failed:', error);
       
