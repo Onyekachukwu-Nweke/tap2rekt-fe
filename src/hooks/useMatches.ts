@@ -68,13 +68,6 @@ export const useMatches = () => {
 
       if (error) throw error;
 
-      // If it's a quick game, try to auto-match immediately
-      if (isQuickGame) {
-        setTimeout(() => {
-          tryAutoMatch(data.id, walletAddress);
-        }, 1000); // Small delay to allow the match to be fully created
-      }
-
       await fetchMatches();
       return data;
     } catch (error) {
@@ -85,43 +78,6 @@ export const useMatches = () => {
         variant: "destructive"
       });
       throw error;
-    }
-  };
-
-  const tryAutoMatch = async (matchId: string, creatorWallet: string) => {
-    try {
-      // Look for other waiting quick games (exclude our own)
-      const { data: waitingMatches, error } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('status', 'waiting')
-        .eq('is_quick_game', true)
-        .neq('id', matchId)
-        .neq('creator_wallet', creatorWallet)
-        .is('opponent_wallet', null)
-        .limit(1);
-
-      if (error) throw error;
-
-      if (waitingMatches && waitingMatches.length > 0) {
-        const targetMatch = waitingMatches[0];
-        
-        // Join the first available match
-        await joinMatch(targetMatch.id, creatorWallet);
-        
-        // Cancel our own match since we joined another
-        await supabase
-          .from('matches')
-          .update({ status: 'cancelled' })
-          .eq('id', matchId);
-          
-        toast({
-          title: "⚡ Auto-Matched!",
-          description: "Found an opponent, starting game!",
-        });
-      }
-    } catch (error) {
-      console.error('Error during auto-match:', error);
     }
   };
 
@@ -143,7 +99,7 @@ export const useMatches = () => {
 
       toast({
         title: "⚡ Battle Joined!",
-        description: "Get ready to tap!",
+        description: "Game starting now!",
       });
 
       await fetchMatches();

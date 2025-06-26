@@ -29,40 +29,22 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       const matchData = await getMatch(matchId);
       setMatch(matchData);
       
-      if (matchData?.status === 'in_progress') {
+      console.log('RealTimeGame loaded match:', matchData);
+      
+      // Start countdown immediately when both players are present
+      if (matchData?.status === 'in_progress' && matchData?.opponent_wallet && matchData?.creator_wallet) {
+        console.log('Both players ready, starting countdown');
         setGameState('countdown');
       }
     };
     loadMatch();
   }, [matchId, getMatch]);
 
-  // Real-time subscriptions
+  // Real-time subscriptions for tap results only
   useEffect(() => {
     if (!matchId) return;
 
-    // Subscribe to match updates
-    const matchChannel = supabase
-      .channel(`match-${matchId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'matches',
-          filter: `id=eq.${matchId}`
-        },
-        (payload) => {
-          const updatedMatch = payload.new;
-          setMatch(updatedMatch);
-          
-          if (updatedMatch.status === 'in_progress' && gameState === 'waiting') {
-            setGameState('countdown');
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to tap results
+    // Subscribe to tap results to show opponent's progress
     const resultsChannel = supabase
       .channel(`results-${matchId}`)
       .on(
@@ -75,18 +57,21 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         },
         (payload) => {
           const result = payload.new;
+          console.log('New tap result:', result);
+          
+          // Only update opponent taps if it's not from current player
           if (result.wallet_address !== walletAddress) {
             setOpponentTaps(result.score);
+            console.log('Opponent final score:', result.score);
           }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(matchChannel);
       supabase.removeChannel(resultsChannel);
     };
-  }, [matchId, walletAddress, gameState]);
+  }, [matchId, walletAddress]);
 
   // Countdown timer
   useEffect(() => {
@@ -97,6 +82,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       
       return () => clearTimeout(timer);
     } else if (gameState === 'countdown' && countdownTime === 0) {
+      console.log('Countdown finished, starting game');
       setGameState('active');
       setTimeLeft(10);
     }
@@ -124,6 +110,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const endGame = async () => {
     if (hasSubmitted) return;
     
+    console.log('Game ended, submitting score:', tapCount);
     setGameState('finished');
     setHasSubmitted(true);
 
@@ -133,6 +120,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
     try {
       await submitTapResult(matchId, walletAddress, tapCount, signature);
+      console.log('Score submitted successfully');
     } catch (error) {
       console.error('Failed to submit result:', error);
     }
@@ -146,8 +134,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     switch (gameState) {
       case 'waiting':
         return {
-          title: '⏳ Waiting for Opponent',
-          subtitle: 'Share the match link or wait for someone to join',
+          title: '⏳ Preparing Game',
+          subtitle: 'Both players connected, get ready!',
           bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
           textColor: 'text-white'
         };
@@ -196,7 +184,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           <CardTitle className="text-white flex items-center justify-between">
             <div className="flex items-center">
               <Target className="w-5 h-5 mr-2 text-purple-400" />
-              Tap Race Battle
+              Tap Race Battle - LIVE
             </div>
             <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
               {match.wager * 2} GORB Prize
@@ -221,7 +209,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                 <Target className="w-8 h-8 text-white" />
               </div>
               <div className="text-lg font-bold text-red-300">
-                {opponent ? `${opponent.slice(0, 8)}...${opponent.slice(-4)}` : 'Waiting...'}
+                {opponent ? `${opponent.slice(0, 8)}...${opponent.slice(-4)}` : 'Opponent'}
               </div>
               <div className="text-3xl font-bold text-white">{opponentTaps}</div>
               <div className="text-sm text-slate-400">Taps</div>

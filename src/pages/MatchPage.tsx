@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -49,10 +50,12 @@ const MatchPage = () => {
           
           if (isPlayerInMatch) {
             setHasJoined(true);
-            // Only start the game if status is 'in_progress' AND both players are present
-            if (matchData.status === 'in_progress' && matchData.opponent_wallet) {
-              setGameStarted(true);
-            }
+          }
+
+          // Start game if match is in progress with both players
+          if (matchData.status === 'in_progress' && matchData.opponent_wallet && matchData.creator_wallet) {
+            setGameStarted(true);
+            console.log('Game auto-started for both players');
           }
         }
       } catch (error) {
@@ -83,12 +86,18 @@ const MatchPage = () => {
           const updatedMatch = payload.new;
           setMatch(updatedMatch);
           
-          // Start game only when status is 'in_progress' AND both players are present
-          if (updatedMatch.status === 'in_progress' && updatedMatch.opponent_wallet && !gameStarted) {
+          console.log('Match updated:', updatedMatch);
+          
+          // Auto-start game when status becomes 'in_progress' and both players are present
+          if (updatedMatch.status === 'in_progress' && 
+              updatedMatch.opponent_wallet && 
+              updatedMatch.creator_wallet && 
+              !gameStarted) {
+            console.log('Starting game for both players!');
             setGameStarted(true);
             toast({
               title: "⚡ Game Starting!",
-              description: "Get ready to tap!",
+              description: "Both players ready - let's go!",
             });
           }
         }
@@ -98,17 +107,18 @@ const MatchPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [matchId, gameStarted]);
+  }, [matchId, gameStarted, toast]);
 
   const handleJoinMatch = async () => {
     if (!matchId || !match || !walletAddress) return;
 
     try {
+      console.log('Player joining match:', matchId);
       await joinMatch(matchId, walletAddress);
       setHasJoined(true);
       toast({
         title: "✅ Joined Battle!",
-        description: "Game will start shortly...",
+        description: "Game starting now...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -165,8 +175,8 @@ const MatchPage = () => {
     );
   }
 
-  // Show the game interface only when both players are ready and game has started
-  if (gameStarted && match.status === 'in_progress' && match.opponent_wallet) {
+  // Show the game interface when game has started
+  if (gameStarted && match.status === 'in_progress' && match.opponent_wallet && match.creator_wallet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-8">
@@ -195,7 +205,7 @@ const MatchPage = () => {
   const isCreator = match?.creator_wallet === walletAddress;
   const canJoin = !hasJoined && !isCreator && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
   const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
-  const bothPlayersReady = match?.opponent_wallet && match?.status === 'waiting';
+  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && match?.status === 'in_progress';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -233,7 +243,7 @@ const MatchPage = () => {
                 <Clock className="w-5 h-5 text-slate-400" />
                 <span className="text-slate-300">
                   {isWaitingForOpponent ? 'Waiting for opponent...' : 
-                   bothPlayersReady ? 'Starting soon...' : 'Ready to battle!'}
+                   bothPlayersReady ? 'Game starting!' : 'Ready to battle!'}
                 </span>
               </div>
             </CardHeader>
