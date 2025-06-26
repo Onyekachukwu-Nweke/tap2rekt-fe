@@ -31,6 +31,8 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   const countdownIntervalRef = useRef<NodeJS.Timeout>();
   const gameTimerRef = useRef<NodeJS.Timeout>();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
   const { toast } = useToast();
 
   const connect = useCallback(() => {
@@ -39,15 +41,26 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       return;
     }
 
-    console.log('Connecting to WebSocket...');
+    // Don't reconnect if we've exceeded max attempts
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      console.log('Max reconnection attempts reached');
+      toast({
+        title: "Connection Failed",
+        description: "Unable to establish WebSocket connection",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log(`Connecting to WebSocket (attempt ${reconnectAttemptsRef.current + 1})...`);
     const wsUrl = `wss://mfwavjbqiggjqxclauae.supabase.co/functions/v1/websocket-battle?matchId=${matchId}&wallet=${walletAddress}`;
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
       console.log('WebSocket connected successfully');
       setIsConnected(true);
+      reconnectAttemptsRef.current = 0; // Reset on successful connection
       
-      // Clear any reconnection timeout
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -66,12 +79,21 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       console.log('WebSocket disconnected:', event.code, event.reason);
       setIsConnected(false);
       
-      // Only attempt to reconnect if not finished and not a normal closure
-      if (battleState.gameState !== 'finished' && event.code !== 1000) {
-        console.log('Attempting to reconnect in 3 seconds...');
+      // Only attempt to reconnect if:
+      // 1. Game is not finished
+      // 2. Close code indicates an error (not normal closure)
+      // 3. We haven't exceeded max attempts
+      if (battleState.gameState !== 'finished' && 
+          event.code !== 1000 && 
+          reconnectAttemptsRef.current < maxReconnectAttempts) {
+        
+        reconnectAttemptsRef.current++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000); // Exponential backoff
+        
+        console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttemptsRef.current})...`);
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
-        }, 3000);
+        }, delay);
       }
     };
 
@@ -79,7 +101,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       console.error('WebSocket error:', error);
       setIsConnected(false);
     };
-  }, [matchId, walletAddress, battleState.gameState]);
+  }, [matchId, walletAddress, battleState.gameState, toast]);
 
   const handleMessage = (message: WebSocketMessage) => {
     console.log('Received WebSocket message:', message);
@@ -234,6 +256,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       wsRef.current.close(1000, 'Manual disconnect');
     }
     setIsConnected(false);
+    reconnectAttemptsRef.current = maxReconnectAttempts; // Prevent reconnection
   };
 
   useEffect(() => {
