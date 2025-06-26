@@ -13,10 +13,27 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
     isConnected: false
   });
 
-  // Send final score update to other players (only when game ends)
+  // Send real-time tap update immediately (no throttling for real-time feel)
+  const sendTapUpdate = useCallback(async (tapCount: number) => {
+    try {
+      const channel = supabase.channel(`match-taps-${matchId}`);
+      await channel.send({
+        type: 'broadcast',
+        event: 'tap_update',
+        payload: {
+          wallet: walletAddress,
+          taps: tapCount,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send tap update:', error);
+    }
+  }, [matchId, walletAddress]);
+
+  // Send final score when game ends
   const sendFinalScore = useCallback(async (finalScore: number) => {
     try {
-      // Broadcast final score via Supabase Realtime
       const channel = supabase.channel(`match-taps-${matchId}`);
       await channel.send({
         type: 'broadcast',
@@ -32,31 +49,10 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
     }
   }, [matchId, walletAddress]);
 
-  // Send periodic tap count updates (less frequent)
-  const sendTapUpdate = useCallback(async (tapCount: number) => {
-    try {
-      // Only send updates every 5 taps to reduce load
-      if (tapCount % 5 === 0 || tapCount === 1) {
-        const channel = supabase.channel(`match-taps-${matchId}`);
-        await channel.send({
-          type: 'broadcast',
-          event: 'tap_update',
-          payload: {
-            wallet: walletAddress,
-            taps: tapCount,
-            timestamp: Date.now()
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Failed to send tap update:', error);
-    }
-  }, [matchId, walletAddress]);
-
   useEffect(() => {
     if (!matchId || !walletAddress) return;
 
-    // Subscribe to real-time tap updates and final scores
+    // Create a single channel for this match
     const channel = supabase
       .channel(`match-taps-${matchId}`)
       .on('broadcast', { event: 'tap_update' }, (payload) => {

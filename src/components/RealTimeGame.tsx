@@ -217,7 +217,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       const newTapCount = tapCount + 1;
       setTapCount(newTapCount);
       
-      // Send real-time update to opponent (throttled to reduce load)
+      // Send immediate real-time update for live gameplay
       sendTapUpdate(newTapCount);
     }
   }, [gameState, tapCount, sendTapUpdate]);
