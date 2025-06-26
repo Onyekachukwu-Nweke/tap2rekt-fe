@@ -236,11 +236,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     // Send final score to other players via real-time
     await sendFinalScore(tapCount);
 
-    // Create a unique signature to avoid duplicates
-    const timestamp = Date.now();
-    const randomComponent = Math.random().toString(36).substring(2);
-    const uniqueData = `${matchId}-${walletAddress}-${tapCount}-${timestamp}-${randomComponent}`;
-    const signature = btoa(uniqueData);
+    // Create a simple signature (in real app, use wallet.signMessage)
+    const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
+    const signature = btoa(message); // Mock signature - replace with real wallet signing
 
     try {
       console.log('Submitting final score:', tapCount);
@@ -269,11 +267,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
     setSubmissionStatus('submitting');
     
-    // Create a new unique signature for retry
-    const timestamp = Date.now();
-    const randomComponent = Math.random().toString(36).substring(2);
-    const uniqueData = `${matchId}-${walletAddress}-${tapCount}-${timestamp}-${randomComponent}-retry`;
-    const signature = btoa(uniqueData);
+    const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
+    const signature = btoa(message);
 
     try {
       await submitTapResult(matchId, walletAddress, tapCount, signature);
