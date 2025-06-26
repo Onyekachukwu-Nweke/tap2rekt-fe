@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -228,18 +229,20 @@ export const useMatches = () => {
     try {
       console.log('Submitting tap result for match:', matchId, 'wallet:', walletAddress, 'score:', score);
 
-      // Use upsert with the unique constraint we just added
+      // Create a more unique signature to avoid duplicates
+      const timestamp = Date.now();
+      const randomComponent = Math.random().toString(36).substring(2);
+      const uniqueSignature = btoa(`${matchId}-${walletAddress}-${score}-${timestamp}-${randomComponent}`);
+
+      // Use direct insert instead of upsert to avoid RLS issues
       const { data: tapResult, error: tapError } = await supabase
         .from('tap_results')
-        .upsert({
+        .insert({
           match_id: matchId,
           wallet_address: walletAddress,
           score: score,
-          signature: signature,
+          signature: uniqueSignature,
           timestamp: new Date().toISOString()
-        }, {
-          onConflict: 'match_id,wallet_address',
-          ignoreDuplicates: false
         })
         .select()
         .single();
