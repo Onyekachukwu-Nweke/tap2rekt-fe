@@ -16,42 +16,40 @@ interface RealTimeGameProps {
 
 const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGameProps) => {
   const [match, setMatch] = useState<any>(null);
-  const [gameState, setGameState] = useState<'waiting' | 'countdown' | 'active' | 'finished'>('waiting');
+  const [gameState, setGameState] = useState<'loading' | 'countdown' | 'active' | 'finished'>('loading');
   const [tapCount, setTapCount] = useState(0);
   const [opponentTaps, setOpponentTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
   const [winner, setWinner] = useState<string | null>(null);
   const { getMatch, submitTapResult, getTapResults } = useMatches();
   const navigate = useNavigate();
 
-  // Load match data
+  // Load match data and immediately start countdown
   useEffect(() => {
-    const loadMatch = async () => {
+    const loadMatchAndStart = async () => {
       const matchData = await getMatch(matchId);
       setMatch(matchData);
       
-      console.log('RealTimeGame loaded match:', matchData);
+      console.log('RealTimeGame loaded match - starting immediately:', matchData);
       
-      // Start countdown immediately when both players are present
+      // IMMEDIATE START - No waiting, both players start synchronized countdown
       if (matchData?.status === 'in_progress' && 
           matchData?.opponent_wallet && 
-          matchData?.creator_wallet &&
-          gameState === 'waiting') {
-        console.log('Both players ready, starting synchronized countdown');
-        startSynchronizedCountdown();
+          matchData?.creator_wallet) {
+        console.log('Both players present - starting IMMEDIATE synchronized countdown');
+        startImmediateCountdown();
       }
     };
-    loadMatch();
+    loadMatchAndStart();
   }, [matchId, getMatch]);
 
   // Real-time subscriptions for match updates and tap results
   useEffect(() => {
     if (!matchId) return;
 
-    // Subscribe to match updates for game state synchronization
+    // Subscribe to match updates
     const matchChannel = supabase
       .channel(`match-updates-${matchId}`)
       .on(
@@ -68,15 +66,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           
           console.log('Match updated in RealTimeGame:', updatedMatch);
           
-          // Start synchronized countdown when both players join
-          if (updatedMatch.status === 'in_progress' && 
-              updatedMatch.opponent_wallet && 
-              updatedMatch.creator_wallet && 
-              gameState === 'waiting') {
-            console.log('Starting synchronized countdown for both players');
-            startSynchronizedCountdown();
-          }
-
           // Handle game completion
           if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
             setWinner(updatedMatch.winner_wallet);
@@ -86,7 +75,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       )
       .subscribe();
 
-    // Subscribe to tap results to show opponent's real-time progress
+    // Subscribe to tap results for real-time opponent progress
     const resultsChannel = supabase
       .channel(`results-${matchId}`)
       .on(
@@ -101,7 +90,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           const result = payload.new;
           console.log('New tap result received:', result);
           
-          // Only update opponent taps if it's not from current player
+          // Update opponent taps if it's not from current player
           if (result.wallet_address !== walletAddress) {
             setOpponentTaps(result.score);
             console.log('Opponent final score updated:', result.score);
@@ -114,10 +103,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       supabase.removeChannel(matchChannel);
       supabase.removeChannel(resultsChannel);
     };
-  }, [matchId, walletAddress, gameState]);
+  }, [matchId, walletAddress]);
 
-  const startSynchronizedCountdown = () => {
-    console.log('Starting synchronized countdown');
+  const startImmediateCountdown = () => {
+    console.log('Starting IMMEDIATE synchronized countdown for both players');
     setGameState('countdown');
     setCountdownTime(3);
     setTapCount(0);
@@ -125,44 +114,36 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     setTimeLeft(10);
     setHasSubmitted(false);
     
-    // Set a synchronized start time
-    const startTime = Date.now() + 3000; // 3 seconds from now
-    setGameStartTime(startTime);
+    // Start countdown timer immediately
+    let countdown = 3;
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      setCountdownTime(countdown);
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        startActiveGame();
+      }
+    }, 1000);
   };
 
-  // Synchronized countdown timer
-  useEffect(() => {
-    if (gameState === 'countdown' && gameStartTime) {
-      const interval = setInterval(() => {
-        const now = Date.now();
-        const remaining = Math.max(0, Math.ceil((gameStartTime - now) / 1000));
-        
-        if (remaining > 0) {
-          setCountdownTime(remaining);
-        } else {
-          console.log('Countdown finished, starting game');
-          setGameState('active');
-          setTimeLeft(10);
-          clearInterval(interval);
-        }
-      }, 100); // Check every 100ms for smooth countdown
+  const startActiveGame = () => {
+    console.log('Starting ACTIVE game phase');
+    setGameState('active');
+    setTimeLeft(10);
+    
+    // Start game timer
+    let timeRemaining = 10;
+    const gameTimer = setInterval(() => {
+      timeRemaining--;
+      setTimeLeft(timeRemaining);
       
-      return () => clearInterval(interval);
-    }
-  }, [gameState, gameStartTime]);
-
-  // Game timer
-  useEffect(() => {
-    if (gameState === 'active' && timeLeft > 0) {
-      const timer = setTimeout(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    } else if (gameState === 'active' && timeLeft === 0) {
-      endGame();
-    }
-  }, [gameState, timeLeft]);
+      if (timeRemaining <= 0) {
+        clearInterval(gameTimer);
+        endGame();
+      }
+    }, 1000);
+  };
 
   const handleTap = () => {
     if (gameState === 'active') {
@@ -195,11 +176,11 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   const getGameStateDisplay = () => {
     switch (gameState) {
-      case 'waiting':
+      case 'loading':
         return {
-          title: '⏳ Synchronizing Game',
-          subtitle: 'Both players connecting...',
-          bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
+          title: '⚡ Starting Battle',
+          subtitle: 'Get ready for real multiplayer action!',
+          bgColor: 'bg-gradient-to-br from-purple-500 to-indigo-600',
           textColor: 'text-white'
         };
       case 'countdown':

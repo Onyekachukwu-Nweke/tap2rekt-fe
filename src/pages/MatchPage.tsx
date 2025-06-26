@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,6 @@ const MatchPage = () => {
   const navigate = useNavigate();
   const [match, setMatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [hasJoined, setHasJoined] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const { getMatch, joinMatch } = useMatches();
   const { toast } = useToast();
@@ -41,25 +40,7 @@ const MatchPage = () => {
       try {
         const matchData = await getMatch(matchId);
         setMatch(matchData);
-        
-        if (matchData) {
-          const isPlayerInMatch = 
-            matchData.creator_wallet === walletAddress || 
-            matchData.opponent_wallet === walletAddress;
-          
-          if (isPlayerInMatch) {
-            setHasJoined(true);
-          }
-
-          // IMMEDIATELY start real multiplayer game if match is in progress with both players
-          if (matchData.status === 'in_progress' && 
-              matchData.opponent_wallet && 
-              matchData.creator_wallet &&
-              isPlayerInMatch) {
-            console.log('Match in progress with both players - starting REAL multiplayer game immediately');
-            setGameStarted(true);
-          }
-        }
+        console.log('Match loaded:', matchData);
       } catch (error) {
         console.error('Failed to load match:', error);
       } finally {
@@ -68,7 +49,7 @@ const MatchPage = () => {
     };
 
     loadMatch();
-  }, [matchId, getMatch, walletAddress]);
+  }, [matchId, getMatch]);
 
   // Real-time subscription for match updates
   useEffect(() => {
@@ -87,19 +68,16 @@ const MatchPage = () => {
         (payload) => {
           const updatedMatch = payload.new;
           setMatch(updatedMatch);
-          
           console.log('Match updated:', updatedMatch);
           
-          // CRITICAL: Immediately start REAL multiplayer game when both players are ready
+          // Show notification when opponent joins
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
               updatedMatch.creator_wallet && 
-              (updatedMatch.creator_wallet === walletAddress || updatedMatch.opponent_wallet === walletAddress)) {
-            console.log('Both players joined - starting REAL MULTIPLAYER GAME for both players!');
-            setGameStarted(true);
+              updatedMatch.opponent_wallet !== walletAddress) {
             toast({
-              title: "⚡ Real Battle Starting!",
-              description: "Both players ready - entering multiplayer arena!",
+              title: "⚡ Opponent Joined!",
+              description: "Real multiplayer battle starting now!",
             });
           }
         }
@@ -115,12 +93,11 @@ const MatchPage = () => {
     if (!matchId || !match || !walletAddress) return;
 
     try {
-      console.log('Player joining match for REAL multiplayer:', matchId);
+      console.log('Player joining match:', matchId);
       await joinMatch(matchId, walletAddress);
-      setHasJoined(true);
       toast({
-        title: "✅ Joined Real Battle!",
-        description: "Preparing multiplayer game...",
+        title: "✅ Joined Battle!",
+        description: "Starting real multiplayer game...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -149,7 +126,6 @@ const MatchPage = () => {
 
   const handleGameComplete = () => {
     console.log('Real multiplayer game completed!');
-    setGameStarted(false);
     // Navigate back to hub after game completion
     setTimeout(() => navigate('/'), 3000);
   };
@@ -179,8 +155,15 @@ const MatchPage = () => {
     );
   }
 
-  // SHOW REAL MULTIPLAYER GAME - No practice mode for opponents!
-  if (gameStarted && match.status === 'in_progress' && match.opponent_wallet && match.creator_wallet) {
+  // CRITICAL: Show REAL multiplayer game immediately when both players are present
+  const isCreator = match?.creator_wallet === walletAddress;
+  const isOpponent = match?.opponent_wallet === walletAddress;
+  const isPlayerInMatch = isCreator || isOpponent;
+  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && match?.status === 'in_progress';
+
+  // IMMEDIATE REAL GAME - No delays, no lobby waiting!
+  if (bothPlayersReady && isPlayerInMatch) {
+    console.log('Both players ready - showing REAL multiplayer game immediately');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-8">
@@ -194,11 +177,9 @@ const MatchPage = () => {
     );
   }
 
-  // Show lobby/waiting room ONLY when match is still waiting
-  const isCreator = match?.creator_wallet === walletAddress;
-  const canJoin = !hasJoined && !isCreator && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
+  // Show lobby ONLY when match is still waiting for players
+  const canJoin = !isPlayerInMatch && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
   const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
-  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && match?.status === 'in_progress';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -235,8 +216,7 @@ const MatchPage = () => {
               <div className="flex items-center justify-center space-x-2">
                 <Clock className="w-5 h-5 text-slate-400" />
                 <span className="text-slate-300">
-                  {isWaitingForOpponent ? 'Waiting for opponent...' : 
-                   bothPlayersReady ? 'Starting real multiplayer battle!' : 'Ready for real battle!'}
+                  {isWaitingForOpponent ? 'Waiting for opponent...' : 'Ready for real battle!'}
                 </span>
               </div>
             </CardHeader>
@@ -256,7 +236,6 @@ const MatchPage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              
               
               {/* Players */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,26 +314,6 @@ const MatchPage = () => {
                     <div className="text-amber-400 text-sm flex items-center justify-center">
                       <Clock className="w-4 h-4 mr-2" />
                       ⏳ Waiting for opponent to join real battle...
-                    </div>
-                  </div>
-                )}
-
-                {hasJoined && isWaitingForOpponent && !isCreator && (
-                  <div className="text-center">
-                    <div className="text-lg text-emerald-400 mb-2">✅ You've joined this REAL battle!</div>
-                    <div className="text-slate-400 flex items-center justify-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Waiting for the real multiplayer game to start...
-                    </div>
-                  </div>
-                )}
-
-                {bothPlayersReady && (
-                  <div className="text-center">
-                    <div className="text-lg text-emerald-400 mb-2">🎮 Both players ready for REAL battle!</div>
-                    <div className="text-slate-400 flex items-center justify-center">
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Starting real multiplayer battle...
                     </div>
                   </div>
                 )}
