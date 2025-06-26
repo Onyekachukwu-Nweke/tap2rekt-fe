@@ -55,7 +55,7 @@ serve(async (req) => {
       gameState: battle.gameState
     });
 
-    // Start countdown if we have 2 players
+    // Start countdown if we have 2 players and not already started
     if (battle.players.size === 2 && battle.gameState === 'waiting') {
       startCountdown(matchId);
     }
@@ -75,9 +75,9 @@ serve(async (req) => {
     const battle = battles.get(matchId);
     if (battle) {
       battle.players.delete(walletAddress);
-      battle.playerTaps.delete(walletAddress);
       
       if (battle.players.size === 0) {
+        console.log(`Cleaning up empty battle: ${matchId}`);
         battles.delete(matchId);
       } else {
         broadcastToMatch(matchId, {
@@ -94,19 +94,23 @@ serve(async (req) => {
 
 function handleMessage(matchId: string, walletAddress: string, message: any) {
   const battle = battles.get(matchId);
-  if (!battle) return;
+  if (!battle) {
+    console.error(`Battle not found: ${matchId}`);
+    return;
+  }
 
   switch (message.type) {
     case 'tap':
       if (battle.gameState === 'active') {
         const currentTaps = battle.playerTaps.get(walletAddress) || 0;
-        battle.playerTaps.set(walletAddress, currentTaps + 1);
+        const newTaps = currentTaps + 1;
+        battle.playerTaps.set(walletAddress, newTaps);
         
         // Broadcast tap update to all players
         broadcastToMatch(matchId, {
           type: 'tap_update',
           wallet: walletAddress,
-          taps: currentTaps + 1,
+          taps: newTaps,
           timestamp: Date.now()
         });
       }
@@ -115,13 +119,9 @@ function handleMessage(matchId: string, walletAddress: string, message: any) {
     case 'game_complete':
       // Handle individual player completion
       const finalScore = battle.playerTaps.get(walletAddress) || 0;
-      broadcastToMatch(matchId, {
-        type: 'player_finished',
-        wallet: walletAddress,
-        score: finalScore
-      });
+      console.log(`Player ${walletAddress} completed with score: ${finalScore}`);
       
-      // Check if both players finished
+      // Check if we should end the game
       checkGameEnd(matchId);
       break;
   }
@@ -129,15 +129,19 @@ function handleMessage(matchId: string, walletAddress: string, message: any) {
 
 function startCountdown(matchId: string) {
   const battle = battles.get(matchId);
-  if (!battle || battle.players.size < 2) return;
+  if (!battle || battle.players.size < 2) {
+    console.error(`Cannot start countdown for battle ${matchId}: insufficient players`);
+    return;
+  }
 
+  console.log(`Starting countdown for battle ${matchId}`);
   battle.gameState = 'countdown';
   battle.countdownStart = Date.now();
   
   broadcastToMatch(matchId, {
     type: 'countdown_start',
     startTime: battle.countdownStart,
-    duration: 3000 // 3 seconds
+    duration: 3000 // 3 seconds countdown
   });
 
   // Start the actual game after countdown
@@ -148,12 +152,16 @@ function startCountdown(matchId: string) {
 
 function startGame(matchId: string) {
   const battle = battles.get(matchId);
-  if (!battle) return;
+  if (!battle) {
+    console.error(`Battle not found when starting game: ${matchId}`);
+    return;
+  }
 
+  console.log(`Starting game for battle ${matchId}`);
   battle.gameState = 'active';
   battle.gameStart = Date.now();
   
-  // Reset tap counts
+  // Reset tap counts for fresh start
   for (const wallet of battle.players.keys()) {
     battle.playerTaps.set(wallet, 0);
   }
@@ -161,19 +169,23 @@ function startGame(matchId: string) {
   broadcastToMatch(matchId, {
     type: 'game_start',
     startTime: battle.gameStart,
-    duration: 10000 // 10 seconds
+    duration: 30000 // 30 seconds game duration
   });
 
-  // End game after 10 seconds
+  // End game after 30 seconds
   setTimeout(() => {
     endGame(matchId);
-  }, 10000);
+  }, 30000);
 }
 
 function endGame(matchId: string) {
   const battle = battles.get(matchId);
-  if (!battle) return;
+  if (!battle) {
+    console.error(`Battle not found when ending game: ${matchId}`);
+    return;
+  }
 
+  console.log(`Ending game for battle ${matchId}`);
   battle.gameState = 'finished';
   
   // Calculate final scores and winner
@@ -182,6 +194,9 @@ function endGame(matchId: string) {
     score: taps
   }));
   
+  console.log(`Final scores for ${matchId}:`, scores);
+  
+  // Determine winner (highest score wins)
   const winner = scores.reduce((prev, current) => 
     prev.score > current.score ? prev : current
   );
@@ -192,6 +207,12 @@ function endGame(matchId: string) {
     winner: winner.wallet,
     timestamp: Date.now()
   });
+
+  // Clean up battle after a delay
+  setTimeout(() => {
+    battles.delete(matchId);
+    console.log(`Battle ${matchId} cleaned up`);
+  }, 30000); // Clean up after 30 seconds
 }
 
 function checkGameEnd(matchId: string) {
@@ -199,19 +220,30 @@ function checkGameEnd(matchId: string) {
   if (!battle) return;
 
   // For now, we'll let the timer handle game end
-  // This function can be extended for early completion logic
+  // This function can be extended for early completion logic if needed
 }
 
 function broadcastToMatch(matchId: string, message: any) {
   const battle = battles.get(matchId);
-  if (!battle) return;
+  if (!battle) {
+    console.error(`Cannot broadcast to battle ${matchId}: battle not found`);
+    return;
+  }
 
   const messageStr = JSON.stringify(message);
+  console.log(`Broadcasting to match ${matchId}:`, message.type);
   
-  for (const [wallet, socket] of battle.players) {
+  // Create a copy of the players map to avoid modification during iteration
+  const playersCopy = new Map(battle.players);
+  
+  for (const [wallet, socket] of playersCopy) {
     try {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(messageStr);
+      } else {
+        console.warn(`Removing disconnected socket for wallet ${wallet}`);
+        battle.players.delete(wallet);
+        battle.playerTaps.delete(wallet);
       }
     } catch (error) {
       console.error(`Error sending message to ${wallet}:`, error);
