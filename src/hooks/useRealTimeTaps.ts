@@ -13,20 +13,41 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
     isConnected: false
   });
 
-  // Send tap update to other players
-  const sendTapUpdate = useCallback(async (tapCount: number) => {
+  // Send final score update to other players (only when game ends)
+  const sendFinalScore = useCallback(async (finalScore: number) => {
     try {
-      // Broadcast tap count via Supabase Realtime
+      // Broadcast final score via Supabase Realtime
       const channel = supabase.channel(`match-taps-${matchId}`);
       await channel.send({
         type: 'broadcast',
-        event: 'tap_update',
+        event: 'final_score_update',
         payload: {
           wallet: walletAddress,
-          taps: tapCount,
+          finalScore: finalScore,
           timestamp: Date.now()
         }
       });
+    } catch (error) {
+      console.error('Failed to send final score update:', error);
+    }
+  }, [matchId, walletAddress]);
+
+  // Send periodic tap count updates (less frequent)
+  const sendTapUpdate = useCallback(async (tapCount: number) => {
+    try {
+      // Only send updates every 5 taps to reduce load
+      if (tapCount % 5 === 0 || tapCount === 1) {
+        const channel = supabase.channel(`match-taps-${matchId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'tap_update',
+          payload: {
+            wallet: walletAddress,
+            taps: tapCount,
+            timestamp: Date.now()
+          }
+        });
+      }
     } catch (error) {
       console.error('Failed to send tap update:', error);
     }
@@ -35,7 +56,7 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
   useEffect(() => {
     if (!matchId || !walletAddress) return;
 
-    // Subscribe to real-time tap updates
+    // Subscribe to real-time tap updates and final scores
     const channel = supabase
       .channel(`match-taps-${matchId}`)
       .on('broadcast', { event: 'tap_update' }, (payload) => {
@@ -46,6 +67,17 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
           playerTaps: {
             ...prev.playerTaps,
             [wallet]: taps
+          }
+        }));
+      })
+      .on('broadcast', { event: 'final_score_update' }, (payload) => {
+        const { wallet, finalScore } = payload.payload;
+        
+        setState(prev => ({
+          ...prev,
+          playerTaps: {
+            ...prev.playerTaps,
+            [wallet]: finalScore
           }
         }));
       })
@@ -64,6 +96,7 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
   return {
     playerTaps: state.playerTaps,
     isConnected: state.isConnected,
-    sendTapUpdate
+    sendTapUpdate,
+    sendFinalScore
   };
 };

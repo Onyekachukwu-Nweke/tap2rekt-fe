@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [gameCompleted, setGameCompleted] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
-  const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
+  const { playerTaps, isConnected, sendTapUpdate, sendFinalScore } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
 
   // Load player stats with error handling
@@ -216,7 +217,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       const newTapCount = tapCount + 1;
       setTapCount(newTapCount);
       
-      // Send real-time update to opponent
+      // Send real-time update to opponent (throttled to reduce load)
       sendTapUpdate(newTapCount);
     }
   }, [gameState, tapCount, sendTapUpdate]);
@@ -231,6 +232,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     setGameState('finished');
     setSubmissionStatus('submitting');
     setHasSubmittedScore(true);
+
+    // Send final score to other players via real-time
+    await sendFinalScore(tapCount);
 
     // Create a simple signature (in real app, use wallet.signMessage)
     const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
