@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,18 +31,49 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       const matchData = await getMatch(matchId);
       setMatch(matchData);
       
-      console.log('RealTimeGame loaded match - starting immediately:', matchData);
+      console.log('RealTimeGame loaded match:', matchData);
       
-      // IMMEDIATE START - No waiting, both players start synchronized countdown
-      if (matchData?.status === 'in_progress' && 
-          matchData?.opponent_wallet && 
-          matchData?.creator_wallet) {
-        console.log('Both players present - starting IMMEDIATE synchronized countdown');
-        startImmediateCountdown();
+      // Check if we should start the game immediately
+      if (isGameReadyToStart(matchData)) {
+        console.log('Game is ready to start - initializing');
+        initializeGame();
       }
     };
     loadMatchAndStart();
   }, [matchId, getMatch]);
+
+  // Check if game is ready to start
+  const isGameReadyToStart = (matchData: any) => {
+    return matchData?.status === 'in_progress' && 
+           matchData?.opponent_wallet && 
+           matchData?.creator_wallet;
+  };
+
+  // Initialize the game with a synchronized countdown
+  const initializeGame = () => {
+    if (gameState !== 'loading') return;
+    
+    console.log('Initializing game with synchronized countdown');
+    setGameState('countdown');
+    setTapCount(0);
+    setOpponentTaps(0);
+    setTimeLeft(10);
+    setHasSubmitted(false);
+    
+    // Start the countdown timer
+    let countdown = 3;
+    setCountdownTime(countdown);
+    
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      setCountdownTime(countdown);
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        startActiveGame();
+      }
+    }, 1000);
+  };
 
   // Real-time subscriptions for match updates and tap results
   useEffect(() => {
@@ -65,6 +95,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           setMatch(updatedMatch);
           
           console.log('Match updated in RealTimeGame:', updatedMatch);
+          
+          // Check if we should start the game when match is updated
+          if (isGameReadyToStart(updatedMatch) && gameState === 'loading') {
+            console.log('Match updated - initializing game');
+            initializeGame();
+          }
           
           // Handle game completion
           if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
@@ -104,28 +140,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       supabase.removeChannel(resultsChannel);
     };
   }, [matchId, walletAddress]);
-
-  const startImmediateCountdown = () => {
-    console.log('Starting IMMEDIATE synchronized countdown for both players');
-    setGameState('countdown');
-    setCountdownTime(3);
-    setTapCount(0);
-    setOpponentTaps(0);
-    setTimeLeft(10);
-    setHasSubmitted(false);
-    
-    // Start countdown timer immediately
-    let countdown = 3;
-    const countdownInterval = setInterval(() => {
-      countdown--;
-      setCountdownTime(countdown);
-      
-      if (countdown <= 0) {
-        clearInterval(countdownInterval);
-        startActiveGame();
-      }
-    }, 1000);
-  };
 
   const startActiveGame = () => {
     console.log('Starting ACTIVE game phase');

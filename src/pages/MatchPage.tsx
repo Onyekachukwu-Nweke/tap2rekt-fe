@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -70,15 +69,21 @@ const MatchPage = () => {
           setMatch(updatedMatch);
           console.log('Match updated:', updatedMatch);
           
-          // Show notification when opponent joins
+          // Show notification when opponent joins and update local state
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
-              updatedMatch.creator_wallet && 
-              updatedMatch.opponent_wallet !== walletAddress) {
-            toast({
-              title: "⚡ Opponent Joined!",
-              description: "Real multiplayer battle starting now!",
-            });
+              updatedMatch.creator_wallet) {
+            
+            // Only show toast if this is the current user's match and opponent just joined
+            if (updatedMatch.opponent_wallet !== walletAddress) {
+              toast({
+                title: "⚡ Opponent Joined!",
+                description: "Real multiplayer battle starting now!",
+              });
+            }
+            
+            // Force a re-render to show the RealTimeGame component
+            setMatch(prev => ({ ...prev, ...updatedMatch }));
           }
         }
       )
@@ -159,7 +164,8 @@ const MatchPage = () => {
   const isCreator = match?.creator_wallet === walletAddress;
   const isOpponent = match?.opponent_wallet === walletAddress;
   const isPlayerInMatch = isCreator || isOpponent;
-  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && match?.status === 'in_progress';
+  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && 
+                         (match?.status === 'in_progress' || match?.status === 'completed');
 
   // IMMEDIATE REAL GAME - No delays, no lobby waiting!
   if (bothPlayersReady && isPlayerInMatch) {
