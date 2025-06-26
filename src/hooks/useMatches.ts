@@ -83,6 +83,8 @@ export const useMatches = () => {
 
   const joinMatch = async (matchId: string, walletAddress: string) => {
     try {
+      console.log('Joining match:', matchId, 'with wallet:', walletAddress);
+      
       const { data, error } = await supabase
         .from('matches')
         .update({
@@ -95,7 +97,12 @@ export const useMatches = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error joining match:', error);
+        throw error;
+      }
+
+      console.log('Successfully joined match:', data);
 
       toast({
         title: "⚡ Battle Joined!",
@@ -117,6 +124,8 @@ export const useMatches = () => {
 
   const submitTapResult = async (matchId: string, walletAddress: string, score: number, signature: string) => {
     try {
+      console.log('Submitting tap result:', { matchId, walletAddress, score });
+      
       const { data, error } = await supabase
         .from('tap_results')
         .insert([{
@@ -143,6 +152,8 @@ export const useMatches = () => {
         // Determine winner and complete match
         const [result1, result2] = allResults;
         const winner = result1.score > result2.score ? result1.wallet_address : result2.wallet_address;
+
+        console.log('Both players finished, determining winner:', winner);
 
         await supabase
           .from('matches')

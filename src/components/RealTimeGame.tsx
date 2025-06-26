@@ -3,9 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Timer, Zap, Trophy, Users, Coins } from 'lucide-react';
+import { Target, Timer, Zap, Trophy, Users, Coins, ArrowLeft } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface RealTimeGameProps {
   matchId: string;
@@ -22,7 +23,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [countdownTime, setCountdownTime] = useState(3);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [winner, setWinner] = useState<string | null>(null);
   const { getMatch, submitTapResult, getTapResults } = useMatches();
+  const navigate = useNavigate();
 
   // Load match data
   useEffect(() => {
@@ -72,6 +75,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               gameState === 'waiting') {
             console.log('Starting synchronized countdown for both players');
             startSynchronizedCountdown();
+          }
+
+          // Handle game completion
+          if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
+            setWinner(updatedMatch.winner_wallet);
+            setGameState('finished');
           }
         }
       )
@@ -189,7 +198,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       case 'waiting':
         return {
           title: '⏳ Synchronizing Game',
-          subtitle: 'Waiting for both players to connect...',
+          subtitle: 'Both players connecting...',
           bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
           textColor: 'text-white'
         };
@@ -208,10 +217,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           textColor: 'text-white'
         };
       case 'finished':
+        const isWinner = winner === walletAddress;
         return {
-          title: 'Game Complete!',
+          title: winner ? (isWinner ? '🎉 Victory!' : '💀 Defeat') : 'Game Complete!',
           subtitle: `Your score: ${tapCount} taps`,
-          bgColor: 'bg-gradient-to-br from-purple-500 to-indigo-600',
+          bgColor: winner ? (isWinner 
+            ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+            : 'bg-gradient-to-br from-red-500 to-pink-600')
+            : 'bg-gradient-to-br from-purple-500 to-indigo-600',
           textColor: 'text-white'
         };
     }
@@ -232,13 +245,13 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   return (
     <div className="space-y-6">
-      {/* Match Info */}
+      {/* Match Info Header */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center justify-between">
             <div className="flex items-center">
               <Target className="w-5 h-5 mr-2 text-purple-400" />
-              Tap Race Battle - LIVE
+              Real 1v1 Battle - LIVE
             </div>
             <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
               {match.wager * 2} GORB Prize
@@ -247,7 +260,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-8">
-            {/* Player Stats */}
+            {/* Your Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Users className="w-8 h-8 text-white" />
@@ -257,7 +270,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               <div className="text-sm text-slate-400">Taps</div>
             </div>
             
-            {/* Real Opponent Stats */}
+            {/* Opponent Stats */}
             <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
               <div className="w-16 h-16 bg-gradient-to-r from-red-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Target className="w-8 h-8 text-white" />
@@ -299,13 +312,32 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             )}
 
             {gameState === 'finished' && (
-              <div className="text-lg mt-4 bg-white/20 rounded-lg px-6 py-3">
-                🎮 Waiting for opponent to finish...
+              <div className="text-lg mt-4 bg-white/20 rounded-lg px-6 py-3 text-center">
+                {winner ? (
+                  <div>
+                    <div className="mb-2">Battle Complete!</div>
+                    <div>Winner: {winner === walletAddress ? 'YOU!' : `${winner.slice(0, 8)}...`}</div>
+                    <div className="text-sm mt-2">Final Score: {tapCount} vs {opponentTaps}</div>
+                  </div>
+                ) : (
+                  <div>🎮 Waiting for results...</div>
+                )}
               </div>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Back Button */}
+      <div className="flex justify-center">
+        <Button 
+          onClick={() => navigate('/')}
+          className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Hub
+        </Button>
+      </div>
     </div>
   );
 };

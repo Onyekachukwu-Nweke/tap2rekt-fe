@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useToast } from '@/hooks/use-toast';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
 import { supabase } from '@/integrations/supabase/client';
-import WebSocketBattleGame from '@/components/WebSocketBattleGame';
+import RealTimeGame from '@/components/RealTimeGame';
 
 const MatchPage = () => {
   const { matchId } = useParams();
@@ -51,10 +52,13 @@ const MatchPage = () => {
             setHasJoined(true);
           }
 
-          // Start game if match is in progress with both players
-          if (matchData.status === 'in_progress' && matchData.opponent_wallet && matchData.creator_wallet) {
+          // CRITICAL FIX: Start game immediately if match is in progress with both players
+          if (matchData.status === 'in_progress' && 
+              matchData.opponent_wallet && 
+              matchData.creator_wallet &&
+              isPlayerInMatch) {
+            console.log('Both players present, starting real multiplayer game');
             setGameStarted(true);
-            console.log('Game auto-started for both players');
           }
         }
       } catch (error) {
@@ -87,16 +91,17 @@ const MatchPage = () => {
           
           console.log('Match updated:', updatedMatch);
           
-          // Auto-start game when status becomes 'in_progress' and both players are present
+          // CRITICAL FIX: Auto-start game when both players are ready
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
               updatedMatch.creator_wallet && 
-              !gameStarted) {
-            console.log('Starting game for both players!');
+              !gameStarted &&
+              (updatedMatch.creator_wallet === walletAddress || updatedMatch.opponent_wallet === walletAddress)) {
+            console.log('Starting multiplayer game for both players!');
             setGameStarted(true);
             toast({
               title: "⚡ Game Starting!",
-              description: "Both players ready - let's go!",
+              description: "Both players ready - let's battle!",
             });
           }
         }
@@ -106,7 +111,7 @@ const MatchPage = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [matchId, gameStarted, toast]);
+  }, [matchId, gameStarted, toast, walletAddress]);
 
   const handleJoinMatch = async () => {
     if (!matchId || !match || !walletAddress) return;
@@ -117,7 +122,7 @@ const MatchPage = () => {
       setHasJoined(true);
       toast({
         title: "✅ Joined Battle!",
-        description: "Game starting now...",
+        description: "Starting game...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -147,6 +152,8 @@ const MatchPage = () => {
   const handleGameComplete = () => {
     console.log('Game completed!');
     setGameStarted(false);
+    // Optionally navigate back to hub after game completion
+    setTimeout(() => navigate('/'), 3000);
   };
 
   if (loading) {
@@ -174,16 +181,15 @@ const MatchPage = () => {
     );
   }
 
-  // Show the WebSocket game interface when game has started
+  // CRITICAL FIX: Show the REAL multiplayer game when both players are present
   if (gameStarted && match.status === 'in_progress' && match.opponent_wallet && match.creator_wallet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-8">
-          <WebSocketBattleGame 
+          <RealTimeGame 
             matchId={matchId!}
             walletAddress={walletAddress!}
-            match={match}
-            onBack={() => navigate('/')}
+            onGameComplete={handleGameComplete}
           />
         </div>
       </div>
