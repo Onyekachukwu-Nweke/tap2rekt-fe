@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,8 +27,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [showPostGame, setShowPostGame] = useState(false);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'submitted' | 'failed'>('idle');
-  const [submissionAttempts, setSubmissionAttempts] = useState(0);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
   const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
@@ -92,6 +91,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         setShowPostGame(true);
         setSubmissionStatus('submitted');
         setGameCompleted(true);
+        setHasSubmittedScore(true);
       }
     } catch (error) {
       console.error('Error loading completed match data:', error);
@@ -128,7 +128,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     }, 1000);
   };
 
-  // Real-time subscriptions for match updates and tap results
+  // Real-time subscriptions for match updates
   useEffect(() => {
     if (!matchId || gameCompleted) return;
 
@@ -159,7 +159,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             setWinner(updatedMatch.winner_wallet);
             setGameState('finished');
             setShowPostGame(true);
-            setSubmissionStatus('submitted');
+            
+            // If we haven't submitted yet, mark as submitted to prevent further attempts
+            if (!hasSubmittedScore) {
+              setSubmissionStatus('submitted');
+              setHasSubmittedScore(true);
+            }
             
             // Reload match with results to get final scores
             setTimeout(async () => {
@@ -187,7 +192,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     return () => {
       supabase.removeChannel(matchChannel);
     };
-  }, [matchId, walletAddress, gameState, gameCompleted, getPlayerStats, getMatchWithResults]);
+  }, [matchId, walletAddress, gameState, gameCompleted, hasSubmittedScore, getPlayerStats, getMatchWithResults]);
 
   const startActiveGame = () => {
     setGameState('active');
@@ -217,19 +222,22 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   }, [gameState, tapCount, sendTapUpdate]);
 
   const endGame = async () => {
-    // Prevent multiple submissions and check if game already completed
-    if (submissionStatus !== 'idle' || gameCompleted) {
+    // Prevent multiple submissions
+    if (hasSubmittedScore || gameCompleted || submissionStatus !== 'idle') {
+      console.log('Game already ended or submission in progress');
       return;
     }
     
     setGameState('finished');
     setSubmissionStatus('submitting');
+    setHasSubmittedScore(true);
 
     // Create a simple signature (in real app, use wallet.signMessage)
     const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
     const signature = btoa(message); // Mock signature - replace with real wallet signing
 
     try {
+      console.log('Submitting final score:', tapCount);
       const result = await submitTapResult(matchId, walletAddress, tapCount, signature);
       setSubmissionStatus('submitted');
       console.log('Result submitted successfully:', result);
@@ -238,7 +246,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       console.error('Failed to submit result:', error);
       if (!gameCompleted) {
         setSubmissionStatus('failed');
-        setSubmissionAttempts(prev => prev + 1);
+        setHasSubmittedScore(false); // Allow retry
       }
     }
 
@@ -248,8 +256,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   };
 
   const retrySubmission = async () => {
-    if (submissionAttempts >= 3 || gameCompleted) {
-      console.warn('Max submission attempts reached or game already completed');
+    if (gameCompleted || hasSubmittedScore) {
+      console.warn('Game already completed, cannot retry');
       return;
     }
 
@@ -261,11 +269,11 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     try {
       await submitTapResult(matchId, walletAddress, tapCount, signature);
       setSubmissionStatus('submitted');
+      setHasSubmittedScore(true);
     } catch (error) {
       console.error('Retry submission failed:', error);
       if (!gameCompleted) {
         setSubmissionStatus('failed');
-        setSubmissionAttempts(prev => prev + 1);
       }
     }
   };
@@ -314,7 +322,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         if (submissionStatus === 'submitting') {
           title = '⏳ Submitting...';
         } else if (submissionStatus === 'failed') {
-          title = submissionAttempts >= 3 ? '❌ Submission Failed' : '⚠️ Retry Submission';
+          title = '⚠️ Submission Failed';
         } else if (submissionStatus === 'submitted') {
           title = '⏳ Waiting for opponent...';
         } else {
@@ -442,7 +450,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                 {submissionStatus === 'submitting' && (
                   <div>⏳ Submitting your score...</div>
                 )}
-                {submissionStatus === 'failed' && submissionAttempts < 3 && (
+                {submissionStatus === 'failed' && (
                   <div>
                     <div className="mb-2">⚠️ Submission failed. Try again?</div>
                     <Button 
@@ -452,12 +460,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                     >
                       Retry Submission
                     </Button>
-                  </div>
-                )}
-                {submissionStatus === 'failed' && submissionAttempts >= 3 && (
-                  <div>
-                    <div className="mb-2">❌ Could not submit score after multiple attempts</div>
-                    <div className="text-xs">Your score: {tapCount} taps</div>
                   </div>
                 )}
                 {submissionStatus === 'submitted' && (
@@ -532,7 +534,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             </Button>
           </>
         )}
-        {gameState === 'finished' && (submissionStatus === 'failed' && submissionAttempts >= 3) && !gameCompleted && (
+        {gameState === 'finished' && (submissionStatus === 'failed') && (
           <Button 
             onClick={() => navigate('/')}
             className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"

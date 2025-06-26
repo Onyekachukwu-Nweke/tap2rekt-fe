@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -229,7 +228,7 @@ export const useMatches = () => {
     try {
       console.log('Submitting tap result for match:', matchId, 'wallet:', walletAddress, 'score:', score);
 
-      // Step 1: Submit the tap result (idempotent operation)
+      // Use upsert with the unique constraint we just added
       const { data: tapResult, error: tapError } = await supabase
         .from('tap_results')
         .upsert({
@@ -252,7 +251,7 @@ export const useMatches = () => {
 
       console.log('Tap result submitted successfully:', tapResult);
 
-      // Step 2: Check if both players have submitted (use a transaction-like approach)
+      // Check if both players have submitted and try to complete match
       const { data: allResults, error: resultsError } = await supabase
         .from('tap_results')
         .select('wallet_address, score')
@@ -263,7 +262,7 @@ export const useMatches = () => {
         return tapResult;
       }
 
-      // Step 3: If both players submitted, try to complete the match (only one will succeed)
+      // If both players submitted, try to complete the match
       if (allResults && allResults.length === 2) {
         console.log('Both players submitted, attempting to complete match');
         
@@ -273,7 +272,7 @@ export const useMatches = () => {
                       result2.score > result1.score ? result2.wallet_address : 
                       null; // Handle ties
 
-        // Try to update match status - only one player will succeed due to status check
+        // Try to update match status - only one update will succeed due to status check
         const { data: updatedMatch, error: updateError } = await supabase
           .from('matches')
           .update({
@@ -287,7 +286,7 @@ export const useMatches = () => {
           .maybeSingle();
 
         if (updateError) {
-          console.log('Match already completed by other player or update failed:', updateError.message);
+          console.log('Match update failed (likely already completed):', updateError.message);
         } else if (updatedMatch) {
           console.log('Match completed successfully:', updatedMatch);
           
@@ -302,6 +301,8 @@ export const useMatches = () => {
             title: winnerText,
             description: `Final scores: ${result1.score} vs ${result2.score}`,
           });
+        } else {
+          console.log('Match was already completed by other player');
         }
       } else {
         toast({
