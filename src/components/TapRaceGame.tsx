@@ -1,103 +1,109 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Target } from 'lucide-react';
-import { getGameStateDisplay } from './game/GameStateDisplay';
-import { useGameTimers } from './game/GameTimers';
+import { useState, useEffect, useCallback } from 'react';
+import { GameStateDisplay } from './game/GameStateDisplay';
+import { GameTimers } from './game/GameTimers';
 import { PlayerStats } from './game/PlayerStats';
 import { GameArea } from './game/GameArea';
 import { GameControls } from './game/GameControls';
 import { GameInstructions } from './game/GameInstructions';
 
 interface TapRaceGameProps {
-  onGameComplete: (score: number, won: boolean, earnings: number) => void;
+  onGameComplete: (score: number, won: boolean, earnings?: number) => void;
 }
 
 const TapRaceGame = ({ onGameComplete }: TapRaceGameProps) => {
   const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'active' | 'finished'>('lobby');
-  const [tapCount, setTapCount] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
   const [countdownTime, setCountdownTime] = useState(3);
-  const [wager] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [tapCount, setTapCount] = useState(0);
 
-  const endGame = () => {
-    setGameState('finished');
-    onGameComplete(tapCount, true, wager);
-  };
-
-  useGameTimers({
-    gameState,
-    timeLeft,
-    countdownTime,
-    setTimeLeft,
-    setCountdownTime,
-    setGameState,
-    onGameEnd: endGame
-  });
-
-  const startCountdown = () => {
+  const startGame = useCallback(() => {
     setGameState('countdown');
     setCountdownTime(3);
-    setTapCount(0);
-    setTimeLeft(10);
-  };
+    
+    const countdownInterval = setInterval(() => {
+      setCountdownTime((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          setGameState('active');
+          setTimeLeft(10);
+          setTapCount(0);
+          
+          const gameInterval = setInterval(() => {
+            setTimeLeft((time) => {
+              if (time <= 1) {
+                clearInterval(gameInterval);
+                setGameState('finished');
+                return 0;
+              }
+              return time - 1;
+            });
+          }, 1000);
+          
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
-  const handleTap = () => {
+  const resetGame = useCallback(() => {
+    setGameState('lobby');
+    setCountdownTime(3);
+    setTimeLeft(10);
+    setTapCount(0);
+  }, []);
+
+  const handleTap = useCallback(() => {
     if (gameState === 'active') {
       setTapCount(prev => prev + 1);
     }
-  };
+  }, [gameState]);
 
-  const resetGame = () => {
-    setGameState('lobby');
-    setTapCount(0);
-    setTimeLeft(10);
-    setCountdownTime(3);
-  };
-
-  const stateDisplay = getGameStateDisplay({ gameState, countdownTime, timeLeft, tapCount });
+  useEffect(() => {
+    if (gameState === 'finished') {
+      onGameComplete(tapCount, true, 0);
+    }
+  }, [gameState, tapCount, onGameComplete]);
 
   return (
-    <div className="space-y-6">
-      {/* Match Info */}
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center justify-between">
-            <div className="flex items-center">
-              <Target className="w-5 h-5 mr-2 text-purple-400" />
-              Practice Mode
-            </div>
-            <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-lg px-4 py-2">
-              Solo Challenge
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center">
-            <PlayerStats tapCount={tapCount} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Game Area */}
-      <GameArea 
+    <div className="max-w-4xl mx-auto space-y-8">
+      <GameInstructions />
+      
+      <GameStateDisplay 
         gameState={gameState}
-        stateDisplay={stateDisplay}
+        countdownTime={countdownTime}
         timeLeft={timeLeft}
         tapCount={tapCount}
-        onTap={handleTap}
       />
 
-      {/* Controls */}
+      <GameTimers 
+        gameState={gameState}
+        countdownTime={countdownTime}
+        timeLeft={timeLeft}
+      />
+
+      <div className="grid md:grid-cols-3 gap-6">
+        <PlayerStats tapCount={tapCount} />
+        
+        <GameArea 
+          gameState={gameState}
+          onTap={handleTap}
+        />
+        
+        <div className="space-y-4">
+          <div className="text-center bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
+            <div className="text-lg font-bold text-purple-300 mb-2">Target</div>
+            <div className="text-2xl font-bold text-white">Max Taps!</div>
+          </div>
+        </div>
+      </div>
+
       <GameControls 
         gameState={gameState}
-        onStart={startCountdown}
+        onStart={startGame}
         onReset={resetGame}
       />
-
-      {/* Game Instructions */}
-      <GameInstructions />
     </div>
   );
 };

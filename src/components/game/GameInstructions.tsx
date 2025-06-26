@@ -1,30 +1,44 @@
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Target } from 'lucide-react';
+import { Target, Zap, Trophy } from 'lucide-react';
 
 export const GameInstructions = () => {
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardContent className="p-6">
-        <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-          <Target className="w-5 h-5 mr-2 text-purple-400" />
-          Practice Mode
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-300">
-          <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-            <div className="font-semibold text-purple-400 mb-2">1. Get Ready</div>
-            <div>3-second countdown to prepare</div>
+    <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-600/50 rounded-xl p-6 backdrop-blur-xl">
+      <h2 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+        How to Play
+      </h2>
+      
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto">
+            <Target className="w-6 h-6 text-white" />
           </div>
-          <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-            <div className="font-semibold text-amber-400 mb-2">2. Tap Fast</div>
-            <div>Click/tap as fast as possible for 10 seconds</div>
-          </div>
-          <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
-            <div className="font-semibold text-emerald-400 mb-2">3. Practice</div>
-            <div>Build your speed for real battles!</div>
-          </div>
+          <h3 className="font-bold text-slate-200">1. Get Ready</h3>
+          <p className="text-sm text-slate-400">
+            Wait for the countdown to finish
+          </p>
         </div>
-      </CardContent>
-    </Card>
+        
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 bg-gradient-to-r from-red-600 to-orange-600 rounded-full flex items-center justify-center mx-auto">
+            <Zap className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="font-bold text-slate-200">2. Tap Fast</h3>
+          <p className="text-sm text-slate-400">
+            Click the target as many times as possible
+          </p>
+        </div>
+        
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-full flex items-center justify-center mx-auto">
+            <Trophy className="w-6 h-6 text-white" />
+          </div>
+          <h3 className="font-bold text-slate-200">3. Beat Your Best</h3>
+          <p className="text-sm text-slate-400">
+            Try to get the highest score possible
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };

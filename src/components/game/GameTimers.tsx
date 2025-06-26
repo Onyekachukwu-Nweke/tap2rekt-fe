@@ -1,48 +1,48 @@
 
-import { useEffect } from 'react';
+import { Clock, Timer } from 'lucide-react';
 
 interface GameTimersProps {
   gameState: 'lobby' | 'countdown' | 'active' | 'finished';
-  timeLeft: number;
   countdownTime: number;
-  setTimeLeft: (value: number | ((prev: number) => number)) => void;
-  setCountdownTime: (value: number | ((prev: number) => number)) => void;
-  setGameState: (state: 'lobby' | 'countdown' | 'active' | 'finished') => void;
-  onGameEnd: () => void;
+  timeLeft: number;
 }
 
-export const useGameTimers = ({
-  gameState,
-  timeLeft,
-  countdownTime,
-  setTimeLeft,
-  setCountdownTime,
-  setGameState,
-  onGameEnd
-}: GameTimersProps) => {
-  // Game timer
-  useEffect(() => {
-    if (gameState === 'active' && timeLeft > 0) {
-      const timer = setTimeout(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    } else if (gameState === 'active' && timeLeft === 0) {
-      onGameEnd();
-    }
-  }, [gameState, timeLeft, setTimeLeft, onGameEnd]);
+export const GameTimers = ({ gameState, countdownTime, timeLeft }: GameTimersProps) => {
+  if (gameState === 'lobby') {
+    return null;
+  }
 
-  // Countdown timer
-  useEffect(() => {
-    if (gameState === 'countdown' && countdownTime > 0) {
-      const timer = setTimeout(() => {
-        setCountdownTime(prev => prev - 1);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    } else if (gameState === 'countdown' && countdownTime === 0) {
-      setGameState('active');
-    }
-  }, [gameState, countdownTime, setCountdownTime, setGameState]);
+  return (
+    <div className="flex justify-center space-x-8">
+      {gameState === 'countdown' && (
+        <div className="text-center bg-orange-900/40 border border-orange-600/30 rounded-lg p-4">
+          <div className="flex items-center justify-center mb-2">
+            <Clock className="w-6 h-6 text-orange-400" />
+          </div>
+          <div className="text-2xl font-bold text-white">{countdownTime}</div>
+          <div className="text-sm text-orange-300">Starting...</div>
+        </div>
+      )}
+
+      {gameState === 'active' && (
+        <div className="text-center bg-green-900/40 border border-green-600/30 rounded-lg p-4">
+          <div className="flex items-center justify-center mb-2">
+            <Timer className="w-6 h-6 text-green-400" />
+          </div>
+          <div className="text-3xl font-bold text-white">{timeLeft}</div>
+          <div className="text-sm text-green-300">Seconds Left</div>
+        </div>
+      )}
+
+      {gameState === 'finished' && (
+        <div className="text-center bg-emerald-900/40 border border-emerald-600/30 rounded-lg p-4">
+          <div className="flex items-center justify-center mb-2">
+            <Timer className="w-6 h-6 text-emerald-400" />
+          </div>
+          <div className="text-2xl font-bold text-white">Done!</div>
+          <div className="text-sm text-emerald-300">Game Complete</div>
+        </div>
+      )}
+    </div>
+  );
 };
