@@ -54,8 +54,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         const matchData = await getMatch(matchId);
         setMatch(matchData);
         
-        console.log('RealTimeGame loaded match:', matchData);
-        
         // Check if match is already completed
         if (matchData?.status === 'completed') {
           await loadCompletedMatchData();
@@ -64,7 +62,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         
         // Check if we should start the game immediately
         if (isGameReadyToStart(matchData)) {
-          console.log('Game is ready to start - initializing');
           initializeGame();
         }
       } catch (error) {
@@ -109,7 +106,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const initializeGame = () => {
     if (gameState !== 'lobby') return;
     
-    console.log('Initializing game with synchronized countdown');
     setGameState('countdown');
     setTapCount(0);
     setTimeLeft(30);
@@ -147,11 +143,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           const updatedMatch = payload.new;
           setMatch(updatedMatch);
           
-          console.log('Match updated in RealTimeGame:', updatedMatch);
-          
           // Check if we should start the game when match is updated
           if (isGameReadyToStart(updatedMatch) && gameState === 'lobby') {
-            console.log('Match updated - initializing game');
             initializeGame();
           }
           
@@ -174,7 +167,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   }, [matchId, walletAddress, gameState, getPlayerStats]);
 
   const startActiveGame = () => {
-    console.log('Starting ACTIVE game phase');
     setGameState('active');
     setTimeLeft(30);
     
@@ -204,13 +196,8 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const endGame = async () => {
     // Prevent multiple submissions
     if (submissionStatus !== 'idle') {
-      console.log('Submission already in progress or completed, status:', submissionStatus);
       return;
     }
-    
-    console.log('=== GAME ENDING ===');
-    console.log('Final score:', tapCount);
-    console.log('Submission status:', submissionStatus);
     
     setGameState('finished');
     setSubmissionStatus('submitting');
@@ -220,10 +207,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     const signature = btoa(message); // Mock signature - replace with real wallet signing
 
     try {
-      console.log('Calling submitTapResult...');
       const result = await submitTapResult(matchId, walletAddress, tapCount, signature);
-      console.log('submitTapResult completed:', result);
-      
       setSubmissionStatus('submitted');
       
       // Wait a moment for the database to update, then reload player stats

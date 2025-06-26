@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -176,8 +177,6 @@ export const useMatches = () => {
 
   const joinMatch = async (matchId: string, walletAddress: string) => {
     try {
-      console.log('Joining match:', matchId, 'with wallet:', walletAddress);
-      
       const { data, error } = await supabase
         .from('matches')
         .update({
@@ -194,8 +193,6 @@ export const useMatches = () => {
         console.error('Error joining match:', error);
         throw error;
       }
-
-      console.log('Successfully joined match:', data);
 
       toast({
         title: "⚡ Battle Joined!",
@@ -217,18 +214,13 @@ export const useMatches = () => {
 
   const submitTapResult = async (matchId: string, walletAddress: string, score: number, signature: string) => {
     try {
-      console.log('=== STARTING TAP RESULT SUBMISSION ===');
-      console.log('Match ID:', matchId);
-      console.log('Wallet:', walletAddress);
-      console.log('Score:', score);
-
-      // Check if this player already submitted a result
-      console.log('Checking for existing result...');
+      // Check if this player already submitted a result using .maybeSingle() to handle multiple results
       const { data: existingResult, error: checkError } = await supabase
         .from('tap_results')
         .select('*')
         .eq('match_id', matchId)
         .eq('wallet_address', walletAddress)
+        .limit(1)
         .maybeSingle();
 
       if (checkError) {
@@ -237,12 +229,10 @@ export const useMatches = () => {
       }
 
       if (existingResult) {
-        console.log('Result already exists, returning existing:', existingResult);
         return existingResult;
       }
 
       // Submit new result
-      console.log('Submitting new tap result...');
       const { data: newResult, error: insertError } = await supabase
         .from('tap_results')
         .insert([{
@@ -260,10 +250,7 @@ export const useMatches = () => {
         throw new Error(`Failed to submit result: ${insertError.message}`);
       }
 
-      console.log('Successfully submitted result:', newResult);
-
       // Check if both players have submitted results
-      console.log('Checking if all players have submitted...');
       const { data: allResults, error: resultsError } = await supabase
         .from('tap_results')
         .select('*')
@@ -274,17 +261,12 @@ export const useMatches = () => {
         throw new Error(`Failed to fetch results: ${resultsError.message}`);
       }
 
-      console.log('All results found:', allResults?.length || 0);
-
       if (allResults && allResults.length === 2) {
         // Determine winner and complete match
         const [result1, result2] = allResults;
         const winner = result1.score > result2.score ? result1.wallet_address : 
                       result2.score > result1.score ? result2.wallet_address : 
                       null; // Handle ties
-
-        console.log('Both players finished, determining winner:', winner);
-        console.log('Scores:', result1.score, 'vs', result2.score);
 
         const { error: updateError } = await supabase
           .from('matches')
@@ -298,8 +280,6 @@ export const useMatches = () => {
         if (updateError) {
           console.error('Error updating match status:', updateError);
           // Don't throw here - the result was still submitted successfully
-        } else {
-          console.log('Match status updated to completed');
         }
 
         const winnerText = winner === walletAddress ? "🎉 Victory!" : 
@@ -310,18 +290,15 @@ export const useMatches = () => {
           description: `Final scores: ${result1.score} vs ${result2.score}`,
         });
       } else {
-        console.log('Waiting for other player to submit...');
         toast({
           title: "✅ Score Submitted!",
           description: "Waiting for opponent to finish...",
         });
       }
 
-      console.log('=== TAP RESULT SUBMISSION COMPLETE ===');
       return newResult;
     } catch (error) {
-      console.error('=== TAP RESULT SUBMISSION FAILED ===');
-      console.error('Error details:', error);
+      console.error('Tap result submission failed:', error);
       
       toast({
         title: "❌ Submission Failed",
