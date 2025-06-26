@@ -37,6 +37,10 @@ interface PlayerStats {
   updated_at: string;
 }
 
+// Cache for player stats to reduce API calls
+const playerStatsCache = new Map<string, { data: PlayerStats; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
+
 export const useMatches = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +52,7 @@ export const useMatches = () => {
         .from('matches')
         .select('*')
         .eq('status', 'waiting')
-        .eq('is_private', false) // Only show public matches
+        .eq('is_private', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -66,27 +70,21 @@ export const useMatches = () => {
   };
 
   const getPlayerStats = async (walletAddress: string): Promise<PlayerStats | null> => {
+    // Check cache first
+    const cached = playerStatsCache.get(walletAddress);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+
     try {
       const { data, error } = await supabase
         .from('player_stats')
         .select('*')
         .eq('wallet_address', walletAddress)
+        .limit(1)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching player stats:', error);
-        return {
-          id: '',
-          wallet_address: walletAddress,
-          total_battles: 0,
-          total_victories: 0,
-          best_tap_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-      }
-      
-      return data || {
+      const defaultStats = {
         id: '',
         wallet_address: walletAddress,
         total_battles: 0,
@@ -95,8 +93,23 @@ export const useMatches = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
+
+      if (error) {
+        console.warn('Error fetching player stats, using defaults:', error.message);
+        return defaultStats;
+      }
+      
+      const result = data || defaultStats;
+      
+      // Cache the result
+      playerStatsCache.set(walletAddress, {
+        data: result,
+        timestamp: Date.now()
+      });
+
+      return result;
     } catch (error) {
-      console.error('Error fetching player stats:', error);
+      console.warn('Error fetching player stats, using defaults:', error);
       return {
         id: '',
         wallet_address: walletAddress,
@@ -185,7 +198,7 @@ export const useMatches = () => {
           started_at: new Date().toISOString()
         })
         .eq('id', matchId)
-        .eq('status', 'waiting') // Only join if still waiting
+        .eq('status', 'waiting')
         .select()
         .single();
 
@@ -214,7 +227,9 @@ export const useMatches = () => {
 
   const submitTapResult = async (matchId: string, walletAddress: string, score: number, signature: string) => {
     try {
-      // Check if this player already submitted a result using .maybeSingle() to handle multiple results
+      console.log('Submitting tap result for match:', matchId, 'wallet:', walletAddress, 'score:', score);
+
+      // Check if this player already submitted a result
       const { data: existingResult, error: checkError } = await supabase
         .from('tap_results')
         .select('*')
@@ -223,12 +238,13 @@ export const useMatches = () => {
         .limit(1)
         .maybeSingle();
 
-      if (checkError) {
+      if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking existing result:', checkError);
         throw new Error(`Failed to check existing result: ${checkError.message}`);
       }
 
       if (existingResult) {
+        console.log('Result already exists, returning existing result');
         return existingResult;
       }
 
@@ -250,6 +266,8 @@ export const useMatches = () => {
         throw new Error(`Failed to submit result: ${insertError.message}`);
       }
 
+      console.log('Successfully submitted tap result:', newResult);
+
       // Check if both players have submitted results
       const { data: allResults, error: resultsError } = await supabase
         .from('tap_results')
@@ -258,10 +276,12 @@ export const useMatches = () => {
 
       if (resultsError) {
         console.error('Error fetching all results:', resultsError);
-        throw new Error(`Failed to fetch results: ${resultsError.message}`);
+        // Don't throw here - the result was submitted successfully
+        return newResult;
       }
 
       if (allResults && allResults.length === 2) {
+        console.log('Both players submitted, determining winner');
         // Determine winner and complete match
         const [result1, result2] = allResults;
         const winner = result1.score > result2.score ? result1.wallet_address : 
@@ -281,6 +301,10 @@ export const useMatches = () => {
           console.error('Error updating match status:', updateError);
           // Don't throw here - the result was still submitted successfully
         }
+
+        // Clear player stats cache for both players to force refresh
+        playerStatsCache.delete(result1.wallet_address);
+        playerStatsCache.delete(result2.wallet_address);
 
         const winnerText = winner === walletAddress ? "🎉 Victory!" : 
                           winner === null ? "🤝 Tie Game!" : "💀 Defeat";
@@ -343,7 +367,7 @@ export const useMatches = () => {
   useEffect(() => {
     fetchMatches();
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates with reduced frequency
     const channel = supabase
       .channel('matches-changes')
       .on(
@@ -354,7 +378,10 @@ export const useMatches = () => {
           table: 'matches'
         },
         () => {
-          fetchMatches();
+          // Debounce the fetch to avoid excessive calls
+          setTimeout(() => {
+            fetchMatches();
+          }, 1000);
         }
       )
       .subscribe();

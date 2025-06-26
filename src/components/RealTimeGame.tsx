@@ -28,11 +28,12 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [showPostGame, setShowPostGame] = useState(false);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'submitted' | 'failed'>('idle');
+  const [submissionAttempts, setSubmissionAttempts] = useState(0);
   const { getMatch, submitTapResult, getMatchWithResults, getPlayerStats } = useMatches();
   const { playerTaps, isConnected, sendTapUpdate } = useRealTimeTaps(matchId, walletAddress);
   const navigate = useNavigate();
 
-  // Load player stats
+  // Load player stats with error handling
   useEffect(() => {
     const loadPlayerStats = async () => {
       if (walletAddress) {
@@ -40,7 +41,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
           const stats = await getPlayerStats(walletAddress);
           setPlayerStats(stats);
         } catch (error) {
-          console.error('Error loading player stats:', error);
+          console.warn('Could not load player stats:', error);
         }
       }
     };
@@ -148,14 +149,21 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             initializeGame();
           }
           
-          // Handle game completion and reload player stats
+          // Handle game completion
           if (updatedMatch.status === 'completed' && updatedMatch.winner_wallet) {
             setWinner(updatedMatch.winner_wallet);
             setGameState('finished');
             setShowPostGame(true);
             
-            // Reload player stats after game completion
-            getPlayerStats(walletAddress).then(setPlayerStats).catch(console.error);
+            // Reload player stats after game completion (with delay to allow DB updates)
+            setTimeout(async () => {
+              try {
+                const updatedStats = await getPlayerStats(walletAddress);
+                setPlayerStats(updatedStats);
+              } catch (error) {
+                console.warn('Could not reload player stats:', error);
+              }
+            }, 2000);
           }
         }
       )
@@ -209,24 +217,37 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     try {
       const result = await submitTapResult(matchId, walletAddress, tapCount, signature);
       setSubmissionStatus('submitted');
-      
-      // Wait a moment for the database to update, then reload player stats
-      setTimeout(async () => {
-        try {
-          const updatedStats = await getPlayerStats(walletAddress);
-          setPlayerStats(updatedStats);
-        } catch (error) {
-          console.error('Error reloading player stats:', error);
-        }
-      }, 2000);
+      console.log('Result submitted successfully:', result);
       
     } catch (error) {
       console.error('Failed to submit result:', error);
       setSubmissionStatus('failed');
+      setSubmissionAttempts(prev => prev + 1);
     }
 
     if (onGameComplete) {
       onGameComplete();
+    }
+  };
+
+  const retrySubmission = async () => {
+    if (submissionAttempts >= 3) {
+      console.warn('Max submission attempts reached');
+      return;
+    }
+
+    setSubmissionStatus('submitting');
+    
+    const message = `match:${matchId},score:${tapCount},timestamp:${new Date().toISOString()}`;
+    const signature = btoa(message);
+
+    try {
+      await submitTapResult(matchId, walletAddress, tapCount, signature);
+      setSubmissionStatus('submitted');
+    } catch (error) {
+      console.error('Retry submission failed:', error);
+      setSubmissionStatus('failed');
+      setSubmissionAttempts(prev => prev + 1);
     }
   };
 
@@ -264,7 +285,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         if (submissionStatus === 'submitting') {
           title = '⏳ Submitting...';
         } else if (submissionStatus === 'failed') {
-          title = '❌ Submission Failed';
+          title = submissionAttempts >= 3 ? '❌ Submission Failed' : '⚠️ Retry Submission';
         } else if (winner) {
           title = isWinner ? '🎉 Victory!' : '💀 Defeat';
         } else {
@@ -395,16 +416,22 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
                 {submissionStatus === 'submitting' && (
                   <div>⏳ Submitting your score...</div>
                 )}
-                {submissionStatus === 'failed' && (
+                {submissionStatus === 'failed' && submissionAttempts < 3 && (
                   <div>
-                    <div className="mb-2">❌ Failed to submit score</div>
+                    <div className="mb-2">⚠️ Submission failed. Try again?</div>
                     <Button 
-                      onClick={endGame}
+                      onClick={retrySubmission}
                       size="sm"
-                      className="bg-red-600 hover:bg-red-700"
+                      className="bg-amber-600 hover:bg-amber-700"
                     >
                       Retry Submission
                     </Button>
+                  </div>
+                )}
+                {submissionStatus === 'failed' && submissionAttempts >= 3 && (
+                  <div>
+                    <div className="mb-2">❌ Could not submit score after multiple attempts</div>
+                    <div className="text-xs">Your score: {tapCount} taps</div>
                   </div>
                 )}
                 {submissionStatus === 'submitted' && winner && (
@@ -478,7 +505,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             </Button>
           </>
         )}
-        {gameState === 'finished' && submissionStatus === 'failed' && (
+        {gameState === 'finished' && (submissionStatus === 'failed' && submissionAttempts >= 3) && (
           <Button 
             onClick={() => navigate('/')}
             className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 w-full sm:w-auto"
