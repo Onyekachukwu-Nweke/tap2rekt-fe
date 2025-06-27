@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -126,6 +127,9 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const myTaps = battleState.playerTaps[walletAddress] || 0;
   const opponentTaps = battleState.playerTaps[opponentWallet] || 0;
 
+  // Map waiting state to lobby for WebSocketGameState component
+  const mappedGameState = battleState.gameState === 'waiting' ? 'lobby' : battleState.gameState;
+
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Connection Status */}
@@ -184,7 +188,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <WebSocketGameState
-            gameState={battleState.gameState}
+            gameState={mappedGameState}
             countdownTime={battleState.countdownTime}
             gameTime={battleState.gameTime}
             myTaps={myTaps}
@@ -273,3 +277,4 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 };
 
 export default RealTimeGame;
+

@@ -4,7 +4,6 @@ import TapRaceHub from '@/components/TapRaceHub';
 import TapRaceGame from '@/components/TapRaceGame';
 import TapRaceLeaderboard from '@/components/TapRaceLeaderboard';
 import WalletConnection from '@/components/WalletConnection';
-import PlayerStatsCard from '@/components/PlayerStatsCard';
 import { Button } from '@/components/ui/button';
 import { Zap, Trophy, Target, Timer } from 'lucide-react';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
@@ -123,13 +122,6 @@ const Index = () => {
       <main className="container mx-auto px-4 py-4 md:py-8 relative z-10">
         {currentView === 'hub' && (
           <div className="space-y-8">
-            {/* Player Stats Card */}
-            {walletAddress && (
-              <div className="max-w-4xl mx-auto">
-                <PlayerStatsCard walletAddress={walletAddress} />
-              </div>
-            )}
-            
             <TapRaceHub 
               onCreateMatch={() => {
                 // Navigation handled by hub itself through react-router
@@ -215,3 +207,4 @@ const Index = () => {
 };
 
 export default Index;
+
