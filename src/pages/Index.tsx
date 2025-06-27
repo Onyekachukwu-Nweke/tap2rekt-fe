@@ -1,11 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TapRaceHub from '@/components/TapRaceHub';
 import TapRaceGame from '@/components/TapRaceGame';
 import TapRaceLeaderboard from '@/components/TapRaceLeaderboard';
 import WalletConnection from '@/components/WalletConnection';
+import PlayerStatsCard from '@/components/PlayerStatsCard';
 import { Button } from '@/components/ui/button';
 import { Zap, Trophy, Target, Timer } from 'lucide-react';
+import { useWalletAddress } from '@/hooks/useWalletAddress';
+import { useMatches } from '@/hooks/useMatches';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState('hub');
@@ -15,6 +18,28 @@ const Index = () => {
     totalWins: 0,
     totalEarnings: 0
   });
+  
+  const walletAddress = useWalletAddress();
+  const { getPlayerStats } = useMatches();
+
+  // Load real player stats from database
+  useEffect(() => {
+    const loadPlayerStats = async () => {
+      if (walletAddress) {
+        const stats = await getPlayerStats(walletAddress);
+        if (stats) {
+          setPlayerStats({
+            gamesPlayed: stats.total_battles,
+            bestScore: stats.best_tap_count,
+            totalWins: stats.total_victories,
+            totalEarnings: 0 // We don't track earnings yet
+          });
+        }
+      }
+    };
+
+    loadPlayerStats();
+  }, [walletAddress, getPlayerStats]);
 
   const updateStats = (score: number, won: boolean, earnings: number = 0) => {
     setPlayerStats(prev => ({
@@ -82,7 +107,7 @@ const Index = () => {
               </div>
               <div className="hidden md:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
                 <Zap className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
-                <span className="text-slate-200 font-semibold">Earned: {playerStats.totalEarnings} GORB</span>
+                <span className="text-slate-200 font-semibold">Win Rate: {playerStats.gamesPlayed > 0 ? Math.round((playerStats.totalWins / playerStats.gamesPlayed) * 100) : 0}%</span>
               </div>
             </div>
             <div className="flex items-center space-x-2 md:space-x-3 bg-emerald-900/40 border border-emerald-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm">
@@ -97,17 +122,26 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-4 md:py-8 relative z-10">
         {currentView === 'hub' && (
-          <TapRaceHub 
-            onCreateMatch={() => {
-              // Navigation handled by hub itself through react-router
-            }}
-            onJoinMatch={() => {
-              // Navigation handled by hub itself through react-router
-            }}
-            onViewLeaderboard={() => setCurrentView('leaderboard')}
-            onPracticeMode={() => setCurrentView('practice')}
-            playerStats={playerStats}
-          />
+          <div className="space-y-8">
+            {/* Player Stats Card */}
+            {walletAddress && (
+              <div className="max-w-4xl mx-auto">
+                <PlayerStatsCard walletAddress={walletAddress} />
+              </div>
+            )}
+            
+            <TapRaceHub 
+              onCreateMatch={() => {
+                // Navigation handled by hub itself through react-router
+              }}
+              onJoinMatch={() => {
+                // Navigation handled by hub itself through react-router
+              }}
+              onViewLeaderboard={() => setCurrentView('leaderboard')}
+              onPracticeMode={() => setCurrentView('practice')}
+              playerStats={playerStats}
+            />
+          </div>
         )}
         
         {currentView === 'practice' && (
