@@ -98,15 +98,37 @@ export const useTokenTransfer = () => {
     if (!targetWallet) return 0;
 
     try {
+      console.log('Getting token balance for wallet:', targetWallet.toBase58());
+      console.log('GORB Mint:', GORB_MINT.toBase58());
+      
       const tokenAddress = await getAssociatedTokenAddress(
         GORB_MINT,
         targetWallet
       );
 
+      console.log('Associated token address:', tokenAddress.toBase58());
+
+      // Check if the token account exists first
+      const accountInfo = await connection.getAccountInfo(tokenAddress);
+      
+      if (!accountInfo) {
+        console.log('Token account does not exist yet, balance is 0');
+        return 0;
+      }
+
       const balance = await connection.getTokenAccountBalance(tokenAddress);
+      console.log('Token balance response:', balance);
+      
       return parseFloat(balance.value.uiAmount?.toString() || '0');
     } catch (error) {
       console.error('Failed to get token balance:', error);
+      
+      // If it's a "could not find account" error, return 0 instead of throwing
+      if (error instanceof Error && error.message.includes('could not find account')) {
+        console.log('Token account not found, returning balance of 0');
+        return 0;
+      }
+      
       return 0;
     }
   };
