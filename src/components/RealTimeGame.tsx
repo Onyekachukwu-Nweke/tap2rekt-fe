@@ -1,10 +1,8 @@
-
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Trophy, ArrowLeft, RotateCcw } from 'lucide-react';
+import { Target, Trophy, ArrowLeft, RotateCcw, Timer, Users, Zap } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useWebSocketBattle } from '@/hooks/useWebSocketBattle';
 import { useGameSubmission } from '@/hooks/useGameSubmission';
@@ -22,10 +20,13 @@ interface RealTimeGameProps {
   onGameComplete?: () => void;
 }
 
-const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGameProps) => {
+const RealTimeGame = ({ matchId, walletAddress }: RealTimeGameProps) => {
   const [match, setMatch] = useState<any>(null);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [showPostGame, setShowPostGame] = useState(false);
+  const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'active' | 'finished'>('lobby');
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [countdown, setCountdown] = useState(0);
   
   const { getMatch, getPlayerStats, getMatchWithResults } = useMatches();
   const { isConnected, battleState, sendTap, disconnect } = useWebSocketBattle(matchId, walletAddress);
@@ -114,6 +115,21 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     });
   };
 
+  const handleWebSocketMessage = (data: any) => {
+    console.log('WebSocket message received:', data);
+    
+    if (data.type === 'game_state_update') {
+      // Map waiting to lobby to match our type
+      const mappedState = data.state === 'waiting' ? 'lobby' : data.state;
+      setGameState(mappedState);
+      setTimeLeft(data.timeLeft || 0);
+      
+      if (data.state === 'countdown') {
+        setCountdown(data.timeLeft || 3);
+      }
+    }
+  };
+
   if (!match) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
@@ -181,7 +197,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       <GameTimers 
         gameState={battleState.gameState}
         countdownTime={battleState.countdownTime}
-        timeLeft={battleState.gameTime}
+        timeLeft={timeLeft}
       />
 
       {/* Game Area */}
@@ -197,6 +213,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             winner={battleState.winner}
             submissionStatus={submissionStatus}
             onTap={sendTap}
+            onWebSocketMessage={handleWebSocketMessage}
           />
         </CardContent>
       </Card>
@@ -277,4 +294,3 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 };
 
 export default RealTimeGame;
-
