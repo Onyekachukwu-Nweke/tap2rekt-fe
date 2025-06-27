@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,7 @@ const MatchPage = () => {
     loadMatch();
   }, [matchId, getMatch]);
 
-  // Real-time subscription for match updates
+  // Real-time subscription for match updates (only for lobby status)
   useEffect(() => {
     if (!matchId) return;
 
@@ -70,21 +69,16 @@ const MatchPage = () => {
           setMatch(updatedMatch);
           console.log('Match updated:', updatedMatch);
           
-          // Show notification when opponent joins and update local state
+          // Show notification when opponent joins
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
-              updatedMatch.creator_wallet) {
+              updatedMatch.creator_wallet &&
+              updatedMatch.opponent_wallet !== walletAddress) {
             
-            // Only show toast if this is the current user's match and opponent just joined
-            if (updatedMatch.opponent_wallet !== walletAddress) {
-              toast({
-                title: "⚡ Opponent Joined!",
-                description: "Real multiplayer battle starting now!",
-              });
-            }
-            
-            // Force a re-render to show the RealTimeGame component
-            setMatch(prev => ({ ...prev, ...updatedMatch }));
+            toast({
+              title: "⚡ Opponent Joined!",
+              description: "WebSocket multiplayer battle starting now!",
+            });
           }
         }
       )
@@ -103,7 +97,7 @@ const MatchPage = () => {
       await joinMatch(matchId, walletAddress);
       toast({
         title: "✅ Joined Battle!",
-        description: "Starting real multiplayer game...",
+        description: "Starting WebSocket multiplayer game...",
       });
     } catch (error) {
       console.error('Failed to join match:', error);
@@ -155,16 +149,16 @@ const MatchPage = () => {
     );
   }
 
-  // CRITICAL: Show REAL multiplayer game immediately when both players are present
+  // CRITICAL: Show WebSocket multiplayer game when both players are present
   const isCreator = match?.creator_wallet === walletAddress;
   const isOpponent = match?.opponent_wallet === walletAddress;
   const isPlayerInMatch = isCreator || isOpponent;
   const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && 
                          (match?.status === 'in_progress' || match?.status === 'completed');
 
-  // IMMEDIATE REAL GAME - No delays, no lobby waiting!
+  // Show WebSocket multiplayer game immediately when both players are ready
   if (bothPlayersReady && isPlayerInMatch) {
-    console.log('Both players ready - showing REAL multiplayer game immediately');
+    console.log('Both players ready - showing WebSocket multiplayer game');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-4 md:py-8">
