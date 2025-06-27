@@ -61,38 +61,6 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
         </div>
       </div>
 
-      {/* Player Stats */}
-      <Card className="bg-gradient-to-r from-slate-800/80 to-slate-900/80 border-slate-600/40 backdrop-blur-xl shadow-2xl shadow-slate-900/50 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-indigo-600/5"></div>
-        <CardHeader className="relative">
-          <CardTitle className="text-2xl text-slate-200 flex items-center">
-            <Trophy className="w-7 h-7 mr-3 text-amber-400" />
-            Your Battle Stats
-            <Sparkles className="w-5 h-5 ml-3 text-purple-400" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="relative">
-          <div className="grid grid-cols-4 gap-6 text-center">
-            <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-3xl font-bold text-purple-300">{playerStats.gamesPlayed}</div>
-              <div className="text-sm text-slate-400 font-semibold">Battles Fought</div>
-            </div>
-            <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-3xl font-bold text-amber-300">{playerStats.totalWins}</div>
-              <div className="text-sm text-slate-400 font-semibold">Victories 🏆</div>
-            </div>
-            <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-3xl font-bold text-indigo-300">{playerStats.bestScore}</div>
-              <div className="text-sm text-slate-400 font-semibold">Best Taps ⚡</div>
-            </div>
-            <div className="bg-slate-700/40 border border-slate-600/30 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-3xl font-bold text-emerald-300">{playerStats.totalEarnings}</div>
-              <div className="text-sm text-slate-400 font-semibold">GORB Earned 💰</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Main Actions - Only Create Match and Practice */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Create Match */}
