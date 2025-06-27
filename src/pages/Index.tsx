@@ -18,13 +18,13 @@ const Index = () => {
     totalEarnings: 0
   });
   
-  const walletAddress = useWalletAddress();
+  const { walletAddress, isConnected } = useWalletAddress();
   const { getPlayerStats } = useMatches();
 
-  // Load real player stats from database
+  // Load real player stats from database only when wallet is connected
   useEffect(() => {
     const loadPlayerStats = async () => {
-      if (walletAddress) {
+      if (walletAddress && isConnected) {
         const stats = await getPlayerStats(walletAddress);
         if (stats) {
           setPlayerStats({
@@ -34,11 +34,19 @@ const Index = () => {
             totalEarnings: 0 // We don't track earnings yet
           });
         }
+      } else {
+        // Reset stats when wallet is disconnected
+        setPlayerStats({
+          gamesPlayed: 0,
+          bestScore: 0,
+          totalWins: 0,
+          totalEarnings: 0
+        });
       }
     };
 
     loadPlayerStats();
-  }, [walletAddress, getPlayerStats]);
+  }, [walletAddress, isConnected, getPlayerStats]);
 
   const updateStats = (score: number, won: boolean, earnings: number = 0) => {
     setPlayerStats(prev => ({
@@ -87,36 +95,38 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Stats Bar */}
-      <div className="border-b border-slate-700/30 bg-gradient-to-r from-slate-800/60 to-slate-900/60 backdrop-blur-xl relative z-10">
-        <div className="container mx-auto px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between text-xs md:text-sm">
-            <div className="flex items-center space-x-2 md:space-x-8 overflow-x-auto">
-              <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
-                <Target className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
-                <span className="text-slate-200 font-semibold">Battles: {playerStats.gamesPlayed}</span>
+      {/* Stats Bar - Only show when wallet is connected */}
+      {isConnected && (
+        <div className="border-b border-slate-700/30 bg-gradient-to-r from-slate-800/60 to-slate-900/60 backdrop-blur-xl relative z-10">
+          <div className="container mx-auto px-4 py-3 md:py-4">
+            <div className="flex items-center justify-between text-xs md:text-sm">
+              <div className="flex items-center space-x-2 md:space-x-8 overflow-x-auto">
+                <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                  <Target className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
+                  <span className="text-slate-200 font-semibold">Battles: {playerStats.gamesPlayed}</span>
+                </div>
+                <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                  <Trophy className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
+                  <span className="text-slate-200 font-semibold">Wins: {playerStats.totalWins}</span>
+                </div>
+                <div className="hidden sm:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                  <Timer className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
+                  <span className="text-slate-200 font-semibold">Best: {playerStats.bestScore}</span>
+                </div>
+                <div className="hidden md:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
+                  <Zap className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
+                  <span className="text-slate-200 font-semibold">Win Rate: {playerStats.gamesPlayed > 0 ? Math.round((playerStats.totalWins / playerStats.gamesPlayed) * 100) : 0}%</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
-                <Trophy className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
-                <span className="text-slate-200 font-semibold">Wins: {playerStats.totalWins}</span>
+              <div className="flex items-center space-x-2 md:space-x-3 bg-emerald-900/40 border border-emerald-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm">
+                <div className="w-2 h-2 md:w-3 md:h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                <span className="text-emerald-300 text-xs md:text-sm font-bold hidden sm:block">🔥 TAP RACE LIVE 🔥</span>
+                <span className="text-emerald-300 text-xs font-bold sm:hidden">🔥 LIVE</span>
               </div>
-              <div className="hidden sm:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
-                <Timer className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
-                <span className="text-slate-200 font-semibold">Best: {playerStats.bestScore}</span>
-              </div>
-              <div className="hidden md:flex items-center space-x-2 md:space-x-3 bg-slate-800/60 border border-slate-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm whitespace-nowrap">
-                <Zap className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
-                <span className="text-slate-200 font-semibold">Win Rate: {playerStats.gamesPlayed > 0 ? Math.round((playerStats.totalWins / playerStats.gamesPlayed) * 100) : 0}%</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 md:space-x-3 bg-emerald-900/40 border border-emerald-600/30 rounded-full px-3 py-1 md:px-4 md:py-2 backdrop-blur-sm">
-              <div className="w-2 h-2 md:w-3 md:h-3 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-emerald-300 text-xs md:text-sm font-bold hidden sm:block">🔥 TAP RACE LIVE 🔥</span>
-              <span className="text-emerald-300 text-xs font-bold sm:hidden">🔥 LIVE</span>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-4 md:py-8 relative z-10">
@@ -207,4 +217,3 @@ const Index = () => {
 };
 
 export default Index;
-
