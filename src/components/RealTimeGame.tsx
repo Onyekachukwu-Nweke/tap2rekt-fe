@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ interface RealTimeGameProps {
   onGameComplete?: () => void;
 }
 
-const RealTimeGame = ({ matchId, walletAddress }: RealTimeGameProps) => {
+const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGameProps) => {
   const [match, setMatch] = useState<any>(null);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [showPostGame, setShowPostGame] = useState(false);
@@ -144,7 +145,7 @@ const RealTimeGame = ({ matchId, walletAddress }: RealTimeGameProps) => {
   const opponentTaps = battleState.playerTaps[opponentWallet] || 0;
 
   // Map waiting state to lobby for WebSocketGameState component
-  const mappedGameState = battleState.gameState === 'waiting' ? 'lobby' : battleState.gameState;
+  const mappedBattleState = battleState.gameState === 'waiting' ? 'lobby' : battleState.gameState;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -204,7 +205,7 @@ const RealTimeGame = ({ matchId, walletAddress }: RealTimeGameProps) => {
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <WebSocketGameState
-            gameState={mappedGameState}
+            gameState={mappedBattleState}
             countdownTime={battleState.countdownTime}
             gameTime={battleState.gameTime}
             myTaps={myTaps}
