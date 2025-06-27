@@ -56,7 +56,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
   
-      const socket = io(process.env.VITE_WS_URL, {
+      const socket = io(import.meta.env.VITE_WS_URL, {
         transports: ["websocket"],
         auth: { token },
         query: { matchId, wallet: walletAddress }
