@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { useMatches } from '@/hooks/useMatches';
 import { useWebSocketBattle } from '@/hooks/useWebSocketBattle';
 import { useGameSubmission } from '@/hooks/useGameSubmission';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { PlayerStats } from './game/PlayerStats';
 import { GameTimers } from './game/GameTimers';
 import { WebSocketConnection } from './game/WebSocketConnection';
@@ -28,6 +30,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const { isConnected, battleState, sendTap, disconnect } = useWebSocketBattle(matchId, walletAddress);
   const { submissionStatus, hasSubmittedScore, submitScore, retrySubmission } = useGameSubmission(matchId, walletAddress);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Load player stats
   useEffect(() => {
