@@ -11,7 +11,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 // GORB Token Mint Address
-export const GORB_MINT = new PublicKey('F827Dq6i32sJsfhNUVEDo4ZVkhcXYNkPo3JMrNRU1GoR');
+export const GORB_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
 
 // Central vault wallet (escrow account) - replace with your actual vault address
 export const VAULT_WALLET = new PublicKey('D43EdL89Em2dit7esTywBGgmTgJafguwQ5qxjQrqBrKg'); // Replace with actual vault
