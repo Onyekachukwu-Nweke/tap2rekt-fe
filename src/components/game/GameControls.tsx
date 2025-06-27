@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Zap, Trophy } from 'lucide-react';
 
 interface GameControlsProps {
-  gameState: 'lobby' | 'countdown' | 'active' | 'finished';
+  gameState: 'waiting' | 'countdown' | 'active' | 'finished';
   onStart: () => void;
   onReset: () => void;
 }
@@ -11,7 +11,7 @@ interface GameControlsProps {
 export const GameControls = ({ gameState, onStart, onReset }: GameControlsProps) => {
   return (
     <div className="flex justify-center space-x-4">
-      {gameState === 'lobby' && (
+      {gameState === 'waiting' && (
         <Button 
           onClick={onStart}
           className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold px-8 py-4"

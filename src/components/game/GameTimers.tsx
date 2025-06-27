@@ -3,7 +3,7 @@ import { Clock, Timer } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface GameTimersProps {
-  gameState: 'lobby' | 'countdown' | 'active' | 'finished';
+  gameState: 'waiting' | 'countdown' | 'active' | 'finished';
   countdownTime: number;
   timeLeft: number;
 }

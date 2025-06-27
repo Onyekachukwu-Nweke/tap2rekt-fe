@@ -1,6 +1,6 @@
 
 interface GameStateDisplayProps {
-  gameState: 'lobby' | 'countdown' | 'active' | 'finished';
+  gameState: 'waiting' | 'countdown' | 'active' | 'finished';
   countdownTime: number;
   timeLeft: number;
   tapCount: number;
@@ -9,7 +9,7 @@ interface GameStateDisplayProps {
 export const GameStateDisplay = ({ gameState, countdownTime, timeLeft, tapCount }: GameStateDisplayProps) => {
   const getDisplayData = () => {
     switch (gameState) {
-      case 'lobby':
+      case 'waiting':
         return {
           title: '🎯 Practice Mode',
           subtitle: 'Single player tap challenge',

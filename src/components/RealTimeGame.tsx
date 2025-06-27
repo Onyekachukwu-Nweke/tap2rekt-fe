@@ -25,7 +25,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [showPostGame, setShowPostGame] = useState(false);
-  const [gameState, setGameState] = useState<'lobby' | 'countdown' | 'active' | 'finished'>('lobby');
+  const [gameState, setGameState] = useState<'waiting' | 'countdown' | 'active' | 'finished'>('waiting');
   const [timeLeft, setTimeLeft] = useState(0);
   const [countdown, setCountdown] = useState(0);
   
@@ -121,7 +121,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     
     if (data.type === 'game_state_update') {
       // Map waiting to lobby to match our type
-      const mappedState = data.state === 'waiting' ? 'lobby' : data.state;
+      const mappedState = data.state === 'waiting' ? 'waiting' : data.state;
       setGameState(mappedState);
       setTimeLeft(data.timeLeft || 0);
       
@@ -145,7 +145,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const opponentTaps = battleState.playerTaps[opponentWallet] || 0;
 
   // Map waiting state to lobby for WebSocketGameState component
-  const mappedBattleState = battleState.gameState === 'waiting' ? 'lobby' : battleState.gameState;
+  const mappedBattleState = battleState.gameState === 'waiting' ? 'waiting' : battleState.gameState;
 
   return (
     <div className="space-y-4 md:space-y-6">
