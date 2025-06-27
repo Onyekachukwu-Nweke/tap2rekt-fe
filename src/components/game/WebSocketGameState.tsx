@@ -29,8 +29,8 @@ export const WebSocketGameState = ({
     switch (gameState) {
       case 'waiting':
         return {
-          title: '⏳ Connecting...',
-          subtitle: 'Establishing WebSocket connection',
+          title: '⏳ Waiting for Players',
+          subtitle: 'Connecting to battle...',
           bgColor: 'bg-gradient-to-br from-slate-700 to-slate-800',
           textColor: 'text-white'
         };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -102,6 +101,15 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     await submitScore(myScore);
   };
 
+  const handleRetryConnection = () => {
+    disconnect();
+    // The useEffect in useWebSocketBattle will automatically reconnect
+    toast({
+      title: "🔄 Reconnecting...",
+      description: "Attempting to reconnect to the battle",
+    });
+  };
+
   if (!match) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
@@ -122,6 +130,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         <WebSocketConnection 
           isConnected={isConnected}
           playerCount={battleState.playerCount}
+          onRetryConnection={handleRetryConnection}
         />
       </div>
 
