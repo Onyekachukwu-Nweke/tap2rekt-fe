@@ -10,8 +10,8 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-// GORB Token Mint Address
-export const GORB_MINT = new PublicKey('71Jvq4Epe2FCJ7JFSF7jLXdNk1Wy4Bhqd9iL6bEFELvg');
+// GORB Token Mint Address - Updated to correct address
+export const GORB_MINT = new PublicKey('F827Dq6i32sJsfhNUVEDo3JMrNRU1GoR');
 
 // Central vault wallet (escrow account) - replace with your actual vault address
 export const VAULT_WALLET = new PublicKey('D43EdL89Em2dit7esTywBGgmTgJafguwQ5qxjQrqBrKg'); // Replace with actual vault
@@ -99,7 +99,8 @@ export const useTokenTransfer = () => {
 
     try {
       console.log('Getting token balance for wallet:', targetWallet.toBase58());
-      console.log('GORB Mint:', GORB_MINT.toBase58());
+      console.log('GORB Mint (updated):', GORB_MINT.toBase58());
+      console.log('Connection endpoint:', connection.rpcEndpoint);
       
       const tokenAddress = await getAssociatedTokenAddress(
         GORB_MINT,
@@ -116,12 +117,21 @@ export const useTokenTransfer = () => {
         return 0;
       }
 
+      console.log('Account info found, fetching balance...');
       const balance = await connection.getTokenAccountBalance(tokenAddress);
       console.log('Token balance response:', balance);
       
-      return parseFloat(balance.value.uiAmount?.toString() || '0');
+      const uiAmount = balance.value.uiAmount;
+      console.log('UI Amount:', uiAmount);
+      
+      return parseFloat(uiAmount?.toString() || '0');
     } catch (error) {
       console.error('Failed to get token balance:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        wallet: targetWallet.toBase58(),
+        mint: GORB_MINT.toBase58()
+      });
       
       // If it's a "could not find account" error, return 0 instead of throwing
       if (error instanceof Error && error.message.includes('could not find account')) {
