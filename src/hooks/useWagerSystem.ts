@@ -124,10 +124,14 @@ export const useWagerSystem = () => {
       const match = await getMatch(matchId);
       if (!match) return null;
 
+      // Since the database doesn't have creator_deposited/opponent_deposited fields,
+      // we'll simulate this based on match status for now
+      const bothDeposited = match.status === 'in_progress' || match.status === 'completed';
+
       return {
-        creatorDeposited: match.creator_deposited || false,
-        opponentDeposited: match.opponent_deposited || false,
-        canStart: match.creator_deposited && match.opponent_deposited,
+        creatorDeposited: bothDeposited,
+        opponentDeposited: bothDeposited,
+        canStart: bothDeposited,
         wagerAmount: match.wager
       };
     } catch (error) {

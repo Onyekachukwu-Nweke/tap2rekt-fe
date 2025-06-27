@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -214,7 +213,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             winner={battleState.winner}
             submissionStatus={submissionStatus}
             onTap={sendTap}
-            onWebSocketMessage={handleWebSocketMessage}
           />
         </CardContent>
       </Card>

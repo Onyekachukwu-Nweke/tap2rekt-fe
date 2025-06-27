@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Copy, LogOut, Sparkles, Zap, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useState, useEffect } from 'react';
 
 const WalletConnection = () => {

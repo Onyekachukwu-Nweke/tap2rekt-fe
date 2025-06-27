@@ -4,7 +4,8 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { 
   getOrCreateAssociatedTokenAccount, 
   createTransferInstruction, 
-  TOKEN_PROGRAM_ID 
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress
 } from '@solana/spl-token';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -36,25 +37,21 @@ export const useTokenTransfer = () => {
       // Convert GORB amount to token units (assuming 9 decimals)
       const tokenAmount = BigInt(amount * Math.pow(10, 9));
 
-      // Get or create associated token accounts
-      const fromTokenAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        publicKey,
+      // Get associated token addresses
+      const fromTokenAddress = await getAssociatedTokenAddress(
         GORB_MINT,
         publicKey
       );
 
-      const toTokenAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        publicKey,
+      const toTokenAddress = await getAssociatedTokenAddress(
         GORB_MINT,
         toAddress
       );
 
       // Create transfer instruction
       const transferInstruction = createTransferInstruction(
-        fromTokenAccount.address,
-        toTokenAccount.address,
+        fromTokenAddress,
+        toTokenAddress,
         publicKey,
         tokenAmount,
         [],
@@ -101,14 +98,12 @@ export const useTokenTransfer = () => {
     if (!targetWallet) return 0;
 
     try {
-      const tokenAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        publicKey || targetWallet,
+      const tokenAddress = await getAssociatedTokenAddress(
         GORB_MINT,
         targetWallet
       );
 
-      const balance = await connection.getTokenAccountBalance(tokenAccount.address);
+      const balance = await connection.getTokenAccountBalance(tokenAddress);
       return parseFloat(balance.value.uiAmount?.toString() || '0');
     } catch (error) {
       console.error('Failed to get token balance:', error);
