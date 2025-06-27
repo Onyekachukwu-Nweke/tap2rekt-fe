@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { io, Socket } from "socket.io-client";
 
 interface WebSocketMessage {
   type: string;
@@ -28,7 +29,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
     playerTaps: {}
   });
   
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout>();
   const gameTimerRef = useRef<NodeJS.Timeout>();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
@@ -37,97 +38,71 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   const { toast } = useToast();
 
   const connect = useCallback(async () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('WebSocket already connected');
+    if (socketRef.current && socketRef.current.connected) {
+      console.log('Socket.io already connected');
       return;
     }
-
+  
     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      console.log('Max reconnection attempts reached');
       toast({
         title: "Connection Failed",
-        description: "Unable to establish WebSocket connection",
+        description: "Unable to establish Socket.io connection",
         variant: "destructive"
       });
       return;
     }
-
+  
     try {
-      // Get current session for authentication
       const { data: { session } } = await supabase.auth.getSession();
-      
-      console.log(`Connecting to WebSocket (attempt ${reconnectAttemptsRef.current + 1})...`);
-      
-      // Construct WebSocket URL with proper authentication
-      const wsUrl = new URL('wss://mfwavjbqiggjqxclauae.supabase.co/functions/v1/websocket-battle');
-      wsUrl.searchParams.set('matchId', matchId);
-      wsUrl.searchParams.set('wallet', walletAddress);
-      
-      // Add authentication if available
-      if (session?.access_token) {
-        wsUrl.searchParams.set('authorization', `Bearer ${session.access_token}`);
-      }
-
-      wsRef.current = new WebSocket(wsUrl.toString());
-
-      wsRef.current.onopen = () => {
-        console.log('WebSocket connected successfully');
+      const token = session?.access_token;
+  
+      const socket = io(process.env.VITE_WS_URL, {
+        transports: ["websocket"],
+        auth: { token },
+        query: { matchId, wallet: walletAddress }
+      });
+  
+      socketRef.current = socket;
+  
+      socket.on("connect", () => {
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
-        
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-
-        // Send initial connection message
-        sendMessage({ 
-          type: 'join_match', 
-          matchId, 
-          wallet: walletAddress 
-        });
-      };
-
-      wsRef.current.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          handleMessage(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      wsRef.current.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+        socket.emit("join_match", { matchId, wallet: walletAddress });
+      });
+  
+      socket.on("update", (message: any) => {
+        handleMessage(message);
+      });
+  
+      socket.on("disconnect", (reason: string) => {
         setIsConnected(false);
-        
-        // Only attempt to reconnect if:
-        // 1. Game is not finished
-        // 2. Close code indicates an error (not normal closure)
-        // 3. We haven't exceeded max attempts
-        if (battleState.gameState !== 'finished' && 
-            event.code !== 1000 && 
-            reconnectAttemptsRef.current < maxReconnectAttempts) {
-          
+        if (battleState.gameState !== 'finished' && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 5000);
-          
-          console.log(`Attempting to reconnect in ${delay}ms...`);
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, delay);
         }
-      };
-
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+      });
+  
+      socket.on("connect_error", (error: any) => {
         setIsConnected(false);
-      };
-
+        toast({
+          title: "Connection Error",
+          description: error.message || "Socket.io connection error",
+          variant: "destructive"
+        });
+      });
     } catch (error) {
-      console.error('Failed to establish WebSocket connection:', error);
       setIsConnected(false);
+      toast({
+        title: "Connection Error",
+        description: (error as Error).message || "Socket.io connection error",
+        variant: "destructive"
+      });
     }
-  }, [matchId, walletAddress, battleState.gameState, toast]);
+  }, [matchId, walletAddress]);
 
   const handleMessage = (message: WebSocketMessage) => {
     console.log('Received WebSocket message:', message);
@@ -262,18 +237,20 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   };
 
   const sendMessage = (message: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+    if (socketRef.current && socketRef.current.connected) {
+      if (message.type === "tap") {
+        socketRef.current.emit("tap", { matchId, wallet: walletAddress });
+      } else {
+        socketRef.current.emit(message.type, { ...message, matchId, wallet: walletAddress });
+      }
     } else {
-      console.warn('WebSocket not connected, message not sent:', message);
+      console.warn('Socket.io not connected, message not sent:', message);
     }
   };
-
+  
   const sendTap = () => {
     if (battleState.gameState === 'active' && isConnected) {
       sendMessage({ type: 'tap' });
-      
-      // Optimistically update local tap count
       setBattleState(prev => ({
         ...prev,
         playerTaps: {
@@ -285,10 +262,8 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   };
 
   const disconnect = () => {
-    console.log('Manually disconnecting WebSocket...');
-    clearTimers();
-    if (wsRef.current) {
-      wsRef.current.close(1000, 'Manual disconnect');
+    if (socketRef.current) {
+      socketRef.current.disconnect();
     }
     setIsConnected(false);
     reconnectAttemptsRef.current = maxReconnectAttempts;
