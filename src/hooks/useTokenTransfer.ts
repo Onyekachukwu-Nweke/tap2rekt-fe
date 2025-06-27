@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 export const GORB_MINT = new PublicKey('F827Dq6i32sJsfhNUVEDo4ZVkhcXYNkPo3JMrNRU1GoR');
 
 // Central vault wallet (escrow account) - replace with your actual vault address
-export const VAULT_WALLET = new PublicKey('GorbVault11111111111111111111111111111111111'); // Replace with actual vault
+export const VAULT_WALLET = new PublicKey('D43EdL89Em2dit7esTywBGgmTgJafguwQ5qxjQrqBrKg'); // Replace with actual vault
 
 export const useTokenTransfer = () => {
   const { connection } = useConnection();
