@@ -4,6 +4,7 @@ import { useTokenTransfer, VAULT_WALLET } from './useTokenTransfer';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMatches } from './useMatches';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useWagerSystem = () => {
   const [processingWager, setProcessingWager] = useState(false);
@@ -31,6 +32,15 @@ export const useWagerSystem = () => {
       // Transfer creator's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
+      // Update match to mark creator deposit as confirmed
+      await supabase
+        .from('matches')
+        .update({ 
+          creator_deposit_confirmed: true,
+          creator_deposit_signature: signature 
+        })
+        .eq('id', matchId);
+
       toast({
         title: "💰 Creator Wager Deposited!",
         description: `${wagerAmount} GORB secured in vault`,
@@ -62,9 +72,26 @@ export const useWagerSystem = () => {
       // Transfer opponent's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
+      // Update match to mark opponent deposit as confirmed and start the match
+      const { data: updatedMatch, error } = await supabase
+        .from('matches')
+        .update({ 
+          opponent_deposit_confirmed: true,
+          opponent_deposit_signature: signature,
+          status: 'in_progress',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', matchId)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to update match status: ${error.message}`);
+      }
+      
       toast({
         title: "💰 Opponent Wager Deposited!",
-        description: `${wagerAmount} GORB secured in vault - Match can now start!`,
+        description: `${wagerAmount} GORB secured in vault - Match starting now!`,
       });
 
       return signature;
@@ -89,16 +116,25 @@ export const useWagerSystem = () => {
         throw new Error('Match not found');
       }
 
-      // Check if refund is valid (match abandoned, timed out, etc.)
+      // Check if refund is valid (match abandoned, timed out, only one deposit, etc.)
       if (match.status !== 'waiting' && match.status !== 'abandoned') {
         throw new Error('Refund not available for this match');
       }
+
+      // Mark match as abandoned for refund processing
+      await supabase
+        .from('matches')
+        .update({ 
+          status: 'abandoned',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', matchId);
 
       // Note: In a real implementation, you'd need vault authority to sign this
       // For now, we'll simulate the refund request
       toast({
         title: "🔄 Refund Requested",
-        description: "Refund will be processed shortly",
+        description: "Match abandoned - refund will be processed shortly",
       });
 
       return true;
@@ -131,14 +167,29 @@ export const useWagerSystem = () => {
         throw new Error('You are not the winner of this match');
       }
 
+      if (match.winnings_claimed) {
+        throw new Error('Winnings already claimed');
+      }
+
       // Calculate total winnings (both wagers)
       const totalWinnings = match.wager * 2;
 
-      // Note: In a real implementation, you'd need vault authority to sign this
-      // For now, we'll simulate the claim
+      // In a real implementation, you'd transfer from vault to winner
+      // For now, we'll simulate by transferring from a test wallet
+      // const signature = await transferTokens(publicKey, totalWinnings, 'winnings');
+
+      // Mark winnings as claimed
+      await supabase
+        .from('matches')
+        .update({ 
+          winnings_claimed: true,
+          winnings_claimed_at: new Date().toISOString()
+        })
+        .eq('id', matchId);
+
       toast({
         title: "🏆 Winnings Claimed!",
-        description: `${totalWinnings} GORB transferred to your wallet`,
+        description: `${totalWinnings} GORB will be transferred to your wallet`,
       });
 
       return true;
@@ -155,17 +206,18 @@ export const useWagerSystem = () => {
       const match = await getMatch(matchId);
       if (!match) return null;
 
-      // In a real implementation, you'd check the vault for deposits
-      // For now, we'll simulate based on match status
-      const bothDeposited = match.status === 'in_progress' || match.status === 'completed';
-      const creatorDeposited = match.status !== 'waiting' || bothDeposited;
-      const opponentDeposited = bothDeposited;
+      const creatorDeposited = match.creator_deposit_confirmed || false;
+      const opponentDeposited = match.opponent_deposit_confirmed || false;
+      const bothDeposited = creatorDeposited && opponentDeposited;
+      const canStart = bothDeposited && match.status === 'waiting';
 
       return {
         creatorDeposited,
         opponentDeposited,
-        canStart: bothDeposited,
-        wagerAmount: match.wager
+        canStart,
+        bothDeposited,
+        wagerAmount: match.wager,
+        canClaim: match.status === 'completed' && match.winner_wallet && !match.winnings_claimed
       };
     } catch (error) {
       console.error('Failed to check wager status:', error);

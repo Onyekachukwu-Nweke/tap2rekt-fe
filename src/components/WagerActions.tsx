@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Shield, Trophy, RefreshCw, Users, Play } from 'lucide-react';
+import { Coins, Shield, Trophy, RefreshCw, Users, Play, AlertTriangle } from 'lucide-react';
 import { useWagerSystem } from '@/hooks/useWagerSystem';
 import { useMatches } from '@/hooks/useMatches';
 import { useMatchLobby } from '@/hooks/useMatchLobby';
@@ -21,7 +22,11 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   
   // Use optimized hooks
   const { balance, wagerStatus, refetch } = useMatchLobby(matchId, walletAddress);
-  const { isConnected, lobbyState, sendMessage } = useMatchLobbyWebSocket(matchId, walletAddress);
+  const { isConnected, lobbyState, sendMessage } = useMatchLobbyWebSocket(
+    matchId, 
+    walletAddress, 
+    match.creator_wallet === walletAddress ? 'creator' : 'opponent'
+  );
   
   const { 
     depositCreatorWager,
@@ -42,6 +47,11 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const isWinner = match.winner_wallet === walletAddress;
   const canJoin = !isPlayer && match.status === 'waiting' && !match.opponent_wallet;
 
+  // Get actual deposit status from match data
+  const creatorDeposited = match.creator_deposit_confirmed || false;
+  const opponentDeposited = match.opponent_deposit_confirmed || false;
+  const bothDeposited = creatorDeposited && opponentDeposited;
+
   const handleJoinAndDeposit = async () => {
     if (balance < match.wager) {
       toast({
@@ -54,12 +64,14 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
 
     setJoiningAndDepositing(true);
     try {
+      // First join the match
       await joinMatch(matchId, walletAddress);
+      
+      // Then deposit the wager (this will also start the match if successful)
       await depositOpponentWager(matchId, match.wager);
       
       // Notify WebSocket about deposit
-      sendMessage({
-        type: 'deposit_made',
+      sendMessage('deposit_made', {
         role: 'opponent',
         amount: match.wager
       });
@@ -68,7 +80,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       
       toast({
         title: "⚡ Joined & Deposited!",
-        description: "Battle can now begin!",
+        description: "Both deposits confirmed - battle starting!",
       });
     } catch (error) {
       console.error('Join and deposit failed:', error);
@@ -96,8 +108,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       await depositCreatorWager(matchId, match.wager);
       
       // Notify WebSocket about deposit
-      sendMessage({
-        type: 'deposit_made',
+      sendMessage('deposit_made', {
         role: 'creator',
         amount: match.wager
       });
@@ -122,8 +133,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       await depositOpponentWager(matchId, match.wager);
       
       // Notify WebSocket about deposit
-      sendMessage({
-        type: 'deposit_made',
+      sendMessage('deposit_made', {
         role: 'opponent',
         amount: match.wager
       });
@@ -137,6 +147,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const handleRequestRefund = async () => {
     try {
       await requestRefund(matchId);
+      await refetch();
     } catch (error) {
       console.error('Refund failed:', error);
     }
@@ -145,6 +156,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const handleClaimWinnings = async () => {
     try {
       await claimWinnings(matchId);
+      await refetch();
     } catch (error) {
       console.error('Claim failed:', error);
     }
@@ -187,34 +199,30 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           </div>
         )}
 
-        {/* Optimized Wager Status Display */}
-        {wagerStatus && isPlayer && (
+        {/* Deposit Status Display */}
+        {isPlayer && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
               <div className="text-sm text-slate-400 mb-1">Creator Deposit</div>
-              <Badge className={
-                wagerStatus.creatorDeposited || lobbyState.deposits.creator 
-                  ? 'bg-green-600' 
-                  : 'bg-red-600'
-              }>
-                {wagerStatus.creatorDeposited || lobbyState.deposits.creator 
-                  ? '✅ Confirmed' 
-                  : '❌ Pending'
-                }
+              <Badge className={creatorDeposited ? 'bg-green-600' : 'bg-red-600'}>
+                {creatorDeposited ? '✅ Confirmed' : '❌ Pending'}
               </Badge>
             </div>
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
               <div className="text-sm text-slate-400 mb-1">Opponent Deposit</div>
-              <Badge className={
-                wagerStatus.opponentDeposited || lobbyState.deposits.opponent 
-                  ? 'bg-green-600' 
-                  : 'bg-red-600'
-              }>
-                {wagerStatus.opponentDeposited || lobbyState.deposits.opponent 
-                  ? '✅ Confirmed' 
-                  : '❌ Pending'
-                }
+              <Badge className={opponentDeposited ? 'bg-green-600' : 'bg-red-600'}>
+                {opponentDeposited ? '✅ Confirmed' : '❌ Pending'}
               </Badge>
+            </div>
+          </div>
+        )}
+
+        {/* Critical Warning for Match Status Mismatch */}
+        {match.status === 'in_progress' && !bothDeposited && (
+          <div className="bg-red-900/20 border border-red-600/30 rounded-lg p-3">
+            <div className="flex items-center text-red-300 text-sm">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Warning: Match started without both deposits confirmed!
             </div>
           </div>
         )}
@@ -252,12 +260,12 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           )}
 
           {/* Creator needs to deposit */}
-          {isCreator && wagerStatus && !wagerStatus.creatorDeposited && match.status === 'waiting' && (
+          {isCreator && !creatorDeposited && match.status === 'waiting' && (
             <div className="space-y-3">
               <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-3">
                 <div className="flex items-center text-purple-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  You need to deposit your {match.wager} GORB wager
+                  You must deposit your {match.wager} GORB wager first
                 </div>
               </div>
               <Button
@@ -280,13 +288,13 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
             </div>
           )}
 
-          {/* Opponent needs to deposit */}
-          {isOpponent && wagerStatus && !wagerStatus.opponentDeposited && match.status === 'waiting' && (
+          {/* Opponent needs to deposit (only show if opponent has joined) */}
+          {isOpponent && !opponentDeposited && match.status === 'waiting' && (
             <div className="space-y-3">
               <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-lg p-3">
                 <div className="flex items-center text-emerald-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  You need to deposit your {match.wager} GORB wager to start the battle
+                  Deposit your {match.wager} GORB wager to start the battle
                 </div>
               </div>
               <Button
@@ -310,7 +318,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           )}
 
           {/* Both deposits confirmed - ready to start */}
-          {isPlayer && wagerStatus && wagerStatus.creatorDeposited && wagerStatus.opponentDeposited && match.status === 'waiting' && (
+          {isPlayer && bothDeposited && match.status === 'waiting' && (
             <div className="bg-green-900/20 border border-green-600/30 rounded-lg p-3 text-center">
               <div className="text-green-300 text-sm font-medium">
                 ✅ Both deposits confirmed - Battle will start automatically!
@@ -341,30 +349,46 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           )}
 
           {/* Claim Winnings */}
-          {match.status === 'completed' && isWinner && (
-            <Button
-              onClick={handleClaimWinnings}
-              disabled={processingClaim}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-            >
-              {processingClaim ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Claiming...
-                </>
-              ) : (
-                <>
-                  <Trophy className="w-4 h-4 mr-2" />
-                  Claim Winnings ({match.wager * 2} GORB)
-                </>
-              )}
-            </Button>
+          {match.status === 'completed' && isWinner && !match.winnings_claimed && (
+            <div className="space-y-3">
+              <div className="bg-green-900/20 border border-green-600/30 rounded-lg p-3 text-center">
+                <div className="text-green-300 text-sm font-medium">
+                  🏆 Congratulations! You won this battle!
+                </div>
+              </div>
+              <Button
+                onClick={handleClaimWinnings}
+                disabled={processingClaim}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              >
+                {processingClaim ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Claiming...
+                  </>
+                ) : (
+                  <>
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Claim Winnings ({match.wager * 2} GORB)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Winnings Already Claimed */}
+          {match.status === 'completed' && isWinner && match.winnings_claimed && (
+            <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
+              <div className="text-slate-300 text-sm">
+                ✅ Winnings already claimed
+              </div>
+            </div>
           )}
 
           {/* Balance Warning */}
-          {(canJoin || (isPlayer && wagerStatus && (
-            (isCreator && !wagerStatus.creatorDeposited) || 
-            (isOpponent && !wagerStatus.opponentDeposited)
+          {(canJoin || (isPlayer && (
+            (isCreator && !creatorDeposited) || 
+            (isOpponent && !opponentDeposited)
           ))) && balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">
