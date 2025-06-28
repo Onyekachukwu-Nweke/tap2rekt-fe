@@ -89,16 +89,26 @@ const MatchPage = () => {
   const isOpponent = match?.opponent_wallet === walletAddress;
   const isPlayerInMatch = isCreator || isOpponent;
   
-  // Check deposits from both database AND WebSocket state for extra safety
-  const creatorDeposited = match?.creator_deposit_confirmed && lobbyState.deposits.creator;
-  const opponentDeposited = match?.opponent_deposit_confirmed && lobbyState.deposits.opponent;
+  // Fixed deposit status logic - use OR instead of AND to show as confirmed if either source confirms it
+  const creatorDeposited = match?.creator_deposit_confirmed || lobbyState.deposits.creator;
+  const opponentDeposited = match?.opponent_deposit_confirmed || lobbyState.deposits.opponent;
   const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet;
   const bothDepositsConfirmed = creatorDeposited && opponentDeposited;
 
-  // Show WebSocket multiplayer game ONLY when both deposits are confirmed in BOTH database AND WebSocket
+  console.log('Deposit Status Debug:', {
+    'DB Creator Deposited': match?.creator_deposit_confirmed,
+    'WS Creator Deposited': lobbyState.deposits.creator,
+    'Final Creator Deposited': creatorDeposited,
+    'DB Opponent Deposited': match?.opponent_deposit_confirmed,
+    'WS Opponent Deposited': lobbyState.deposits.opponent,
+    'Final Opponent Deposited': opponentDeposited,
+    'Both Deposits Confirmed': bothDepositsConfirmed
+  });
+
+  // Show WebSocket multiplayer game ONLY when both deposits are confirmed and match status allows it
   if (bothPlayersReady && isPlayerInMatch && bothDepositsConfirmed && 
       (match?.status === 'in_progress' || lobbyState.matchStatus === 'in_progress')) {
-    console.log('Both players ready with deposits confirmed in DB and WS - showing WebSocket multiplayer game');
+    console.log('Both players ready with deposits confirmed - showing WebSocket multiplayer game');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-4 md:py-8">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,10 +46,19 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const isWinner = match.winner_wallet === walletAddress;
   const canJoin = !isPlayer && match.status === 'waiting' && !match.opponent_wallet;
 
-  // Get actual deposit status from match data
-  const creatorDeposited = match.creator_deposit_confirmed || false;
-  const opponentDeposited = match.opponent_deposit_confirmed || false;
+  // Fixed deposit status logic - use OR instead of AND to show as confirmed if either source confirms it
+  const creatorDeposited = match.creator_deposit_confirmed || lobbyState.deposits.creator;
+  const opponentDeposited = match.opponent_deposit_confirmed || lobbyState.deposits.opponent;
   const bothDeposited = creatorDeposited && opponentDeposited;
+
+  console.log('WagerActions Deposit Status:', {
+    'DB Creator': match.creator_deposit_confirmed,
+    'WS Creator': lobbyState.deposits.creator,
+    'Final Creator': creatorDeposited,
+    'DB Opponent': match.opponent_deposit_confirmed,
+    'WS Opponent': lobbyState.deposits.opponent,
+    'Final Opponent': opponentDeposited
+  });
 
   const handleJoinAndDeposit = async () => {
     if (balance < match.wager) {
