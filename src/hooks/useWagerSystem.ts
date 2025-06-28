@@ -33,7 +33,7 @@ export const useWagerSystem = () => {
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
       // Update match to mark creator deposit as confirmed
-      await supabase
+      const { error } = await supabase
         .from('matches')
         .update({ 
           creator_deposit_confirmed: true,
@@ -41,7 +41,13 @@ export const useWagerSystem = () => {
         })
         .eq('id', matchId);
 
-      // Only notify WebSocket AFTER database is updated
+      if (error) {
+        throw new Error(`Failed to update match: ${error.message}`);
+      }
+
+      console.log('Creator deposit confirmed in database, notifying WebSocket...');
+
+      // Only notify WebSocket AFTER database is updated successfully
       if (onDepositConfirmed) {
         onDepositConfirmed();
       }

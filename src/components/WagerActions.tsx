@@ -115,11 +115,12 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
 
     try {
       await depositCreatorWager(matchId, match.wager, () => {
-        // Only send WebSocket message after database confirms the deposit
+        console.log('Creator deposit confirmed, sending WebSocket notification...');
+        // Send WebSocket message with proper payload structure
         sendMessage('deposit_made', {
           lobbyId: matchId,
           wallet: walletAddress,
-          role: 'creator'
+          role: 'creator' // Explicitly include role
         });
       });
       

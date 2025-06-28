@@ -26,7 +26,7 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log('Lobby WebSocket connected for:', wallet);
+      console.log('Lobby WebSocket connected for:', wallet, 'as', role);
       setIsConnected(true);
       socket.emit("join_lobby", { lobbyId, wallet, role });
     });
@@ -54,7 +54,7 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     });
 
     socket.on("deposit_confirmed", (msg) => {
-      console.log('Deposit confirmed in lobby:', msg);
+      console.log('Deposit confirmed in lobby WebSocket:', msg);
       setLobbyState((prev) => ({
         ...prev,
         deposits: { ...prev.deposits, [msg.role]: true },
