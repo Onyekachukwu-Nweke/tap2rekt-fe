@@ -12,6 +12,7 @@ import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
+import React from 'react';
 
 interface CreateBattleModalProps {
   isOpen: boolean;

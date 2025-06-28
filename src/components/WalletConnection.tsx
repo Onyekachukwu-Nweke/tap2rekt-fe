@@ -22,7 +22,7 @@ const WalletConnection = () => {
       if (connected && publicKey) {
         setBalanceLoading(true);
         try {
-          const balance = await getTokenBalance(publicKey);
+          const balance = await getTokenBalance();
           setGorbBalance(balance);
         } catch (error) {
           console.error('Failed to fetch GOR balance:', error);

@@ -75,15 +75,15 @@ export const useTokenTransfer = () => {
     if (!targetWallet) return 0;
 
     try {
-      console.log('Getting balance for wallet:', targetWallet.toBase58());
-      console.log('Connection endpoint:', connection.rpcEndpoint);
+      // console.log('Getting balance for wallet:', targetWallet.toBase58());
+      // console.log('Connection endpoint:', connection.rpcEndpoint);
       
       // Get SOL balance directly
       const balance = await connection.getBalance(targetWallet);
       const balanceInGOR = balance / LAMPORTS_PER_SOL;
 
-      console.log('Balance in lamports:', balance);
-      console.log('Balance in GOR:', balanceInGOR);
+      // console.log('Balance in lamports:', balance);
+      // console.log('Balance in GOR:', balanceInGOR);
       
       return balanceInGOR;
     } catch (error) {
