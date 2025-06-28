@@ -67,7 +67,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       // First join the match
       await joinMatch(matchId, walletAddress);
       
-      // Then deposit the wager (this will also start the match if successful)
+      // Then deposit the wager (this will also start the match if creator deposited)
       await depositOpponentWager(matchId, match.wager);
       
       // Notify WebSocket about deposit
@@ -80,7 +80,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       
       toast({
         title: "⚡ Joined & Deposited!",
-        description: "Both deposits confirmed - battle starting!",
+        description: "Deposit confirmed - waiting for match to start!",
       });
     } catch (error) {
       console.error('Join and deposit failed:', error);
@@ -288,8 +288,8 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
             </div>
           )}
 
-          {/* Opponent needs to deposit (only show if opponent has joined) */}
-          {isOpponent && !opponentDeposited && match.status === 'waiting' && (
+          {/* Opponent needs to deposit (only show if opponent has joined and creator deposited) */}
+          {isOpponent && !opponentDeposited && match.status === 'waiting' && creatorDeposited && (
             <div className="space-y-3">
               <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-lg p-3">
                 <div className="flex items-center text-emerald-300 text-sm">
@@ -314,6 +314,15 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                   </>
                 )}
               </Button>
+            </div>
+          )}
+
+          {/* Waiting for creator to deposit */}
+          {isOpponent && !creatorDeposited && match.status === 'waiting' && (
+            <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
+              <div className="text-amber-300 text-sm">
+                ⏳ Waiting for creator to deposit their wager first
+              </div>
             </div>
           )}
 
@@ -388,7 +397,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           {/* Balance Warning */}
           {(canJoin || (isPlayer && (
             (isCreator && !creatorDeposited) || 
-            (isOpponent && !opponentDeposited)
+            (isOpponent && !opponentDeposited && creatorDeposited)
           ))) && balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">

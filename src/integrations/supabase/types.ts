@@ -13,41 +13,59 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string | null
+          creator_deposit_confirmed: boolean | null
+          creator_deposit_signature: string | null
           creator_wallet: string
           id: string
           is_private: boolean
           is_quick_game: boolean
+          opponent_deposit_confirmed: boolean | null
+          opponent_deposit_signature: string | null
           opponent_wallet: string | null
           started_at: string | null
           status: string | null
           wager: number
           winner_wallet: string | null
+          winnings_claimed: boolean | null
+          winnings_claimed_at: string | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string | null
+          creator_deposit_confirmed?: boolean | null
+          creator_deposit_signature?: string | null
           creator_wallet: string
           id?: string
           is_private?: boolean
           is_quick_game?: boolean
+          opponent_deposit_confirmed?: boolean | null
+          opponent_deposit_signature?: string | null
           opponent_wallet?: string | null
           started_at?: string | null
           status?: string | null
           wager: number
           winner_wallet?: string | null
+          winnings_claimed?: boolean | null
+          winnings_claimed_at?: string | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string | null
+          creator_deposit_confirmed?: boolean | null
+          creator_deposit_signature?: string | null
           creator_wallet?: string
           id?: string
           is_private?: boolean
           is_quick_game?: boolean
+          opponent_deposit_confirmed?: boolean | null
+          opponent_deposit_signature?: string | null
           opponent_wallet?: string | null
           started_at?: string | null
           status?: string | null
           wager?: number
           winner_wallet?: string | null
+          winnings_claimed?: boolean | null
+          winnings_claimed_at?: string | null
         }
         Relationships: []
       }

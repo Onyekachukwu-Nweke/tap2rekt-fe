@@ -14,6 +14,12 @@ interface Match {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  creator_deposit_confirmed?: boolean;
+  opponent_deposit_confirmed?: boolean;
+  creator_deposit_signature?: string;
+  opponent_deposit_signature?: string;
+  winnings_claimed?: boolean;
+  winnings_claimed_at?: string;
 }
 
 interface TapResult {

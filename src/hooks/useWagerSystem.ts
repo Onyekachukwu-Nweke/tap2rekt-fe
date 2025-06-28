@@ -69,6 +69,12 @@ export const useWagerSystem = () => {
         throw new Error(`Insufficient GORB balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
       }
 
+      // First check if creator has deposited
+      const match = await getMatch(matchId);
+      if (!match?.creator_deposit_confirmed) {
+        throw new Error('Creator must deposit first before opponent can deposit');
+      }
+
       // Transfer opponent's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
@@ -101,7 +107,7 @@ export const useWagerSystem = () => {
     } finally {
       setProcessingWager(false);
     }
-  }, [publicKey, transferTokens, getTokenBalance, toast]);
+  }, [publicKey, transferTokens, getTokenBalance, toast, getMatch]);
 
   const requestRefund = useCallback(async (matchId: string) => {
     if (!publicKey) {
