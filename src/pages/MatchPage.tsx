@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { Target, Users, Coins, ArrowLeft, Copy, Check, Clock } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
 import { useMatchLobby } from '@/hooks/useMatchLobby';
+import { useMatchLobbyWebSocket } from '@/hooks/useMatchLobbyWebSocket';
 import RealTimeGame from '@/components/RealTimeGame';
 import WagerActions from '@/components/WagerActions';
 
@@ -19,6 +21,13 @@ const MatchPage = () => {
 
   // Use optimized match lobby hook
   const { match, loading, error, refetch } = useMatchLobby(matchId || '', walletAddress || '');
+  
+  // Use WebSocket for real-time lobby updates
+  const { isConnected: wsConnected, lobbyState } = useMatchLobbyWebSocket(
+    matchId || '', 
+    walletAddress || '', 
+    match?.creator_wallet === walletAddress ? 'creator' : 'opponent'
+  );
 
   // Redirect to home if wallet is not connected
   useEffect(() => {
@@ -79,12 +88,17 @@ const MatchPage = () => {
   const isCreator = match?.creator_wallet === walletAddress;
   const isOpponent = match?.opponent_wallet === walletAddress;
   const isPlayerInMatch = isCreator || isOpponent;
-  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && 
-                         (match?.status === 'in_progress' || match?.status === 'completed');
+  
+  // Check deposits from both database AND WebSocket state for extra safety
+  const creatorDeposited = match?.creator_deposit_confirmed && lobbyState.deposits.creator;
+  const opponentDeposited = match?.opponent_deposit_confirmed && lobbyState.deposits.opponent;
+  const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet;
+  const bothDepositsConfirmed = creatorDeposited && opponentDeposited;
 
-  // Show WebSocket multiplayer game when both players are ready and deposits confirmed
-  if (bothPlayersReady && isPlayerInMatch && match?.status === 'in_progress') {
-    console.log('Both players ready with deposits confirmed - showing WebSocket multiplayer game');
+  // Show WebSocket multiplayer game ONLY when both deposits are confirmed in BOTH database AND WebSocket
+  if (bothPlayersReady && isPlayerInMatch && bothDepositsConfirmed && 
+      (match?.status === 'in_progress' || lobbyState.matchStatus === 'in_progress')) {
+    console.log('Both players ready with deposits confirmed in DB and WS - showing WebSocket multiplayer game');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-4 md:py-8">
@@ -176,9 +190,19 @@ const MatchPage = () => {
                 <span className="text-sm md:text-base text-slate-300">
                   {isWaitingForOpponent ? 'Waiting for opponent...' : 
                    isWaitingForDeposits ? 'Waiting for deposits...' : 
-                   'Ready for battle!'}
+                   bothDepositsConfirmed ? 'Ready for battle!' : 'Confirming deposits...'}
                 </span>
               </div>
+              
+              {/* WebSocket Connection Status */}
+              {isPlayerInMatch && (
+                <div className="flex items-center justify-center space-x-2 mt-2">
+                  <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                  <span className="text-xs text-slate-400">
+                    {wsConnected ? 'Live updates active' : 'Connecting...'}
+                  </span>
+                </div>
+              )}
             </CardHeader>
           </Card>
 
@@ -205,6 +229,12 @@ const MatchPage = () => {
                     {match.creator_wallet.slice(0, 8)}...{match.creator_wallet.slice(-6)}
                   </div>
                   {isCreator && <Badge className="mt-2 bg-purple-600">You</Badge>}
+                  {/* Show deposit status */}
+                  <div className="mt-2">
+                    <Badge className={creatorDeposited ? 'bg-green-600' : 'bg-red-600'}>
+                      {creatorDeposited ? '✅ Deposited' : '⏳ Pending'}
+                    </Badge>
+                  </div>
                 </div>
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-4">
@@ -216,6 +246,14 @@ const MatchPage = () => {
                     }
                   </div>
                   {match.opponent_wallet === walletAddress && <Badge className="mt-2 bg-purple-600">You</Badge>}
+                  {/* Show deposit status only if opponent exists */}
+                  {match.opponent_wallet && (
+                    <div className="mt-2">
+                      <Badge className={opponentDeposited ? 'bg-green-600' : 'bg-red-600'}>
+                        {opponentDeposited ? '✅ Deposited' : '⏳ Pending'}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               </div>
 

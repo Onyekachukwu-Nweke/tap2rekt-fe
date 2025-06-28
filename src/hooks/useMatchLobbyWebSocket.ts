@@ -26,11 +26,13 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      console.log('Lobby WebSocket connected for:', wallet);
       setIsConnected(true);
       socket.emit("join_lobby", { lobbyId, wallet, role });
     });
 
     socket.on("lobby_update", (msg) => {
+      console.log('Lobby update received:', msg);
       setLobbyState((prev) => ({
         ...prev,
         playerCount: msg.playerCount,
@@ -40,6 +42,7 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     });
 
     socket.on("player_joined", (msg) => {
+      console.log('Player joined lobby:', msg);
       setLobbyState((prev) => ({
         ...prev,
         playerCount: msg.playerCount,
@@ -51,6 +54,7 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     });
 
     socket.on("deposit_confirmed", (msg) => {
+      console.log('Deposit confirmed in lobby:', msg);
       setLobbyState((prev) => ({
         ...prev,
         deposits: { ...prev.deposits, [msg.role]: true },
@@ -60,10 +64,14 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     });
 
     socket.on("match_ready", () => {
+      console.log('Match ready - both deposits confirmed!');
       toast({ title: "⚡ Match Ready!", description: "Both deposits confirmed - starting battle!" });
     });
 
-    socket.on("disconnect", () => setIsConnected(false));
+    socket.on("disconnect", () => {
+      console.log('Lobby WebSocket disconnected');
+      setIsConnected(false);
+    });
 
     return () => {
       socket.disconnect();
