@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Shield, Trophy, RefreshCw, Users } from 'lucide-react';
+import { Coins, Shield, Trophy, RefreshCw, Users, Play } from 'lucide-react';
 import { useWagerSystem } from '@/hooks/useWagerSystem';
 import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useMatches } from '@/hooks/useMatches';
@@ -19,7 +19,9 @@ interface WagerActionsProps {
 const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const [balance, setBalance] = useState(0);
   const [wagerStatus, setWagerStatus] = useState<any>(null);
+  const [joiningAndDepositing, setJoiningAndDepositing] = useState(false);
   const { 
+    depositCreatorWager,
     depositOpponentWager, 
     requestRefund, 
     claimWinnings, 
@@ -63,6 +65,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       return;
     }
 
+    setJoiningAndDepositing(true);
     try {
       // First join the match
       await joinMatch(matchId, walletAddress);
@@ -85,6 +88,50 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         description: error instanceof Error ? error.message : "Failed to join battle",
         variant: "destructive"
       });
+    } finally {
+      setJoiningAndDepositing(false);
+    }
+  };
+
+  const handleDepositCreatorWager = async () => {
+    if (balance < match.wager) {
+      toast({
+        title: "⚠️ Insufficient Balance",
+        description: `You need ${match.wager} GORB to deposit`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await depositCreatorWager(matchId, match.wager);
+      
+      // Refresh status after deposit
+      const status = await checkWagerStatus(matchId);
+      setWagerStatus(status);
+    } catch (error) {
+      console.error('Creator deposit failed:', error);
+    }
+  };
+
+  const handleDepositOpponentWager = async () => {
+    if (balance < match.wager) {
+      toast({
+        title: "⚠️ Insufficient Balance",
+        description: `You need ${match.wager} GORB to deposit`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await depositOpponentWager(matchId, match.wager);
+      
+      // Refresh status after deposit
+      const status = await checkWagerStatus(matchId);
+      setWagerStatus(status);
+    } catch (error) {
+      console.error('Opponent deposit failed:', error);
     }
   };
 
@@ -115,25 +162,25 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
             Wager System
           </div>
           <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-            {balance.toFixed(2)} GORB
+            {balance.toFixed(4)} GORB
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         
         {/* Wager Status */}
-        {wagerStatus && (
+        {wagerStatus && isPlayer && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
-              <div className="text-sm text-slate-400 mb-1">Creator Wager</div>
+              <div className="text-sm text-slate-400 mb-1">Creator Deposit</div>
               <Badge className={wagerStatus.creatorDeposited ? 'bg-green-600' : 'bg-red-600'}>
-                {wagerStatus.creatorDeposited ? '✅ Deposited' : '❌ Pending'}
+                {wagerStatus.creatorDeposited ? '✅ Confirmed' : '❌ Pending'}
               </Badge>
             </div>
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
-              <div className="text-sm text-slate-400 mb-1">Opponent Wager</div>
+              <div className="text-sm text-slate-400 mb-1">Opponent Deposit</div>
               <Badge className={wagerStatus.opponentDeposited ? 'bg-green-600' : 'bg-red-600'}>
-                {wagerStatus.opponentDeposited ? '✅ Deposited' : '❌ Pending'}
+                {wagerStatus.opponentDeposited ? '✅ Confirmed' : '❌ Pending'}
               </Badge>
             </div>
           </div>
@@ -142,7 +189,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         {/* Actions based on match status */}
         <div className="space-y-3">
           
-          {/* Join & Deposit */}
+          {/* Join & Deposit (for non-players) */}
           {canJoin && (
             <div className="space-y-3">
               <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3">
@@ -153,10 +200,10 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               </div>
               <Button
                 onClick={handleJoinAndDeposit}
-                disabled={processingWager || balance < match.wager}
+                disabled={joiningAndDepositing || processingWager || balance < match.wager}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
               >
-                {processingWager ? (
+                {joiningAndDepositing || processingWager ? (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                     Joining & Depositing...
@@ -168,6 +215,73 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                   </>
                 )}
               </Button>
+            </div>
+          )}
+
+          {/* Creator needs to deposit */}
+          {isCreator && wagerStatus && !wagerStatus.creatorDeposited && match.status === 'waiting' && (
+            <div className="space-y-3">
+              <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-3">
+                <div className="flex items-center text-purple-300 text-sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  You need to deposit your {match.wager} GORB wager
+                </div>
+              </div>
+              <Button
+                onClick={handleDepositCreatorWager}
+                disabled={processingWager || balance < match.wager}
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+              >
+                {processingWager ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Depositing...
+                  </>
+                ) : (
+                  <>
+                    <Coins className="w-4 h-4 mr-2" />
+                    Deposit Wager ({match.wager} GORB)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Opponent needs to deposit */}
+          {isOpponent && wagerStatus && !wagerStatus.opponentDeposited && match.status === 'waiting' && (
+            <div className="space-y-3">
+              <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-lg p-3">
+                <div className="flex items-center text-emerald-300 text-sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  You need to deposit your {match.wager} GORB wager to start the battle
+                </div>
+              </div>
+              <Button
+                onClick={handleDepositOpponentWager}
+                disabled={processingWager || balance < match.wager}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              >
+                {processingWager ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Depositing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Deposit & Start Battle ({match.wager} GORB)
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Both deposits confirmed - ready to start */}
+          {isPlayer && wagerStatus && wagerStatus.creatorDeposited && wagerStatus.opponentDeposited && match.status === 'waiting' && (
+            <div className="bg-green-900/20 border border-green-600/30 rounded-lg p-3 text-center">
+              <div className="text-green-300 text-sm font-medium">
+                ✅ Both deposits confirmed - Battle will start automatically!
+              </div>
             </div>
           )}
 
@@ -215,10 +329,13 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           )}
 
           {/* Balance Warning */}
-          {canJoin && balance < match.wager && (
+          {(canJoin || (isPlayer && wagerStatus && (
+            (isCreator && !wagerStatus.creatorDeposited) || 
+            (isOpponent && !wagerStatus.opponentDeposited)
+          ))) && balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">
-                ⚠️ Insufficient GORB balance to join this battle
+                ⚠️ Insufficient GORB balance ({balance.toFixed(4)} / {match.wager} needed)
               </div>
             </div>
           )}

@@ -2,8 +2,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Clock, Coins } from 'lucide-react';
+import { Target, Clock, Coins, Play, Zap } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
+import { useNavigate } from 'react-router-dom';
 
 interface ActiveMatchesProps {
   walletAddress: string;
@@ -11,16 +12,13 @@ interface ActiveMatchesProps {
 }
 
 const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
-  const { matches, loading, joinMatch } = useMatches();
+  const { matches, loading } = useMatches();
+  const navigate = useNavigate();
 
-  const handleJoinMatch = async (matchId: string) => {
-    try {
-      await joinMatch(matchId, walletAddress);
-      if (onJoinMatch) {
-        onJoinMatch(matchId);
-      }
-    } catch (error) {
-      console.error('Failed to join match:', error);
+  const handleJoinMatch = (matchId: string) => {
+    navigate(`/match/${matchId}`);
+    if (onJoinMatch) {
+      onJoinMatch(matchId);
     }
   };
 
@@ -41,7 +39,7 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
 
   if (loading) {
     return (
-      <Card className="bg-gradient-to-r from-slate-800/60 to-slate-900/60 border-slate-600/30 backdrop-blur-xl">
+      <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-600/30 backdrop-blur-xl">
         <CardContent className="p-8 text-center">
           <div className="text-slate-400">Loading active battles...</div>
         </CardContent>
@@ -50,72 +48,92 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
   }
 
   return (
-    <Card className="bg-gradient-to-r from-slate-800/60 to-slate-900/60 border-slate-600/30 backdrop-blur-xl">
-      <CardHeader>
-        <CardTitle className="text-2xl text-slate-200 flex items-center">
-          <Target className="w-6 h-6 mr-3 text-purple-400" />
-          Public Battles
-          <Badge className="ml-3 bg-gradient-to-r from-emerald-600 to-teal-600">
+    <Card className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border-slate-600/30 backdrop-blur-xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-2xl text-slate-100 flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center mr-3">
+              <Target className="w-5 h-5 text-white" />
+            </div>
+            <span>Active Battles</span>
+          </div>
+          <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold px-3 py-1 text-sm">
+            <Zap className="w-3 h-3 mr-1" />
             {publicMatches.length} Live
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {publicMatches.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-slate-400 text-lg mb-2">No public battles available</div>
-            <div className="text-slate-500 text-sm">Create one or check back later!</div>
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gradient-to-r from-slate-700 to-slate-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Target className="w-8 h-8 text-slate-400" />
+            </div>
+            <div className="text-slate-300 text-lg font-medium mb-2">No active battles</div>
+            <div className="text-slate-500 text-sm">Create the first battle and start the action!</div>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="space-y-3">
             {publicMatches.map((match) => (
               <div 
                 key={match.id}
-                className="flex items-center justify-between bg-slate-700/40 border border-slate-600/30 rounded-lg p-4 hover:bg-slate-700/60 transition-all duration-300"
+                className="group relative bg-gradient-to-r from-slate-700/40 to-slate-800/40 border border-slate-600/30 rounded-xl p-4 hover:from-slate-700/60 hover:to-slate-800/60 transition-all duration-300 hover:border-purple-500/30"
               >
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-                    <Target className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-slate-200 font-semibold">
-                      {match.creator_wallet.slice(0, 8)}...{match.creator_wallet.slice(-6)}
-                    </div>
-                    <div className="flex items-center space-x-3 text-sm text-slate-400">
-                      <div className="flex items-center">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {formatTimeAgo(match.created_at)}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
+                        <Target className="w-6 h-6 text-white" />
                       </div>
-                      <div className="flex items-center">
-                        <Coins className="w-3 h-3 mr-1" />
-                        {match.wager} GOR
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-slate-200 font-semibold text-sm">
+                        {match.creator_wallet.slice(0, 6)}...{match.creator_wallet.slice(-4)}
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs text-slate-400">
+                        <div className="flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {formatTimeAgo(match.created_at)}
+                        </div>
+                        <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
+                        <div className="flex items-center">
+                          <Coins className="w-3 h-3 mr-1 text-amber-400" />
+                          {match.wager} GORB
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold">
-                    {match.wager} GORB
-                  </Badge>
-                  <Button 
-                    size="sm"
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                    onClick={() => handleJoinMatch(match.id)}
-                    disabled={match.creator_wallet === walletAddress}
-                  >
-                    {match.creator_wallet === walletAddress ? 'Your Battle' : 'Join Battle'}
-                  </Button>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-xs px-2 py-1">
+                      Win {match.wager * 2} GORB
+                    </Badge>
+                    <Button 
+                      size="sm"
+                      className={`${
+                        match.creator_wallet === walletAddress 
+                          ? 'bg-gradient-to-r from-slate-600 to-slate-700 text-slate-300 cursor-default' 
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white'
+                      } font-medium px-4 py-2 text-xs transition-all duration-200`}
+                      onClick={() => handleJoinMatch(match.id)}
+                      disabled={match.creator_wallet === walletAddress}
+                    >
+                      {match.creator_wallet === walletAddress ? (
+                        'Your Battle'
+                      ) : (
+                        <>
+                          <Play className="w-3 h-3 mr-1" />
+                          Join Battle
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
-        
-        <div className="mt-6 p-4 bg-slate-700/20 border border-slate-600/20 rounded-lg text-center">
-          <p className="text-slate-400 text-sm">
-            🔒 <strong>Private battles</strong> are completely hidden and only accessible via direct link
-          </p>
-        </div>
       </CardContent>
     </Card>
   );

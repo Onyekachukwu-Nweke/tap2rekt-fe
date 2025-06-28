@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
 import { supabase } from '@/integrations/supabase/client';
 import RealTimeGame from '@/components/RealTimeGame';
+import WagerActions from '@/components/WagerActions';
 
 const MatchPage = () => {
   const { matchId } = useParams();
@@ -16,7 +17,7 @@ const MatchPage = () => {
   const [match, setMatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
-  const { getMatch, joinMatch } = useMatches();
+  const { getMatch } = useMatches();
   const { toast } = useToast();
   const { walletAddress, isConnected } = useWalletAddress();
 
@@ -50,7 +51,7 @@ const MatchPage = () => {
     loadMatch();
   }, [matchId, getMatch]);
 
-  // Real-time subscription for match updates (only for lobby status)
+  // Real-time subscription for match updates
   useEffect(() => {
     if (!matchId) return;
 
@@ -69,14 +70,13 @@ const MatchPage = () => {
           setMatch(updatedMatch);
           console.log('Match updated:', updatedMatch);
           
-          // Show notification when opponent joins
+          // Show notification when match starts
           if (updatedMatch.status === 'in_progress' && 
               updatedMatch.opponent_wallet && 
-              updatedMatch.creator_wallet &&
-              updatedMatch.opponent_wallet !== walletAddress) {
+              updatedMatch.creator_wallet) {
             
             toast({
-              title: "⚡ Opponent Joined!",
+              title: "⚡ Both Players Ready!",
               description: "WebSocket multiplayer battle starting now!",
             });
           }
@@ -88,26 +88,6 @@ const MatchPage = () => {
       supabase.removeChannel(channel);
     };
   }, [matchId, toast, walletAddress]);
-
-  const handleJoinMatch = async () => {
-    if (!matchId || !match || !walletAddress) return;
-
-    try {
-      console.log('Player joining match:', matchId);
-      await joinMatch(matchId, walletAddress);
-      toast({
-        title: "✅ Joined Battle!",
-        description: "Starting WebSocket multiplayer game...",
-      });
-    } catch (error) {
-      console.error('Failed to join match:', error);
-      toast({
-        title: "❌ Failed to Join",
-        description: "Could not join the battle",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleCopyLink = async () => {
     try {
@@ -149,16 +129,15 @@ const MatchPage = () => {
     );
   }
 
-  // CRITICAL: Show WebSocket multiplayer game when both players are present
   const isCreator = match?.creator_wallet === walletAddress;
   const isOpponent = match?.opponent_wallet === walletAddress;
   const isPlayerInMatch = isCreator || isOpponent;
   const bothPlayersReady = match?.opponent_wallet && match?.creator_wallet && 
                          (match?.status === 'in_progress' || match?.status === 'completed');
 
-  // Show WebSocket multiplayer game immediately when both players are ready
-  if (bothPlayersReady && isPlayerInMatch) {
-    console.log('Both players ready - showing WebSocket multiplayer game');
+  // Show WebSocket multiplayer game when both players are ready and deposits confirmed
+  if (bothPlayersReady && isPlayerInMatch && match?.status === 'in_progress') {
+    console.log('Both players ready with deposits confirmed - showing WebSocket multiplayer game');
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
         <div className="container mx-auto px-4 py-4 md:py-8">
@@ -171,9 +150,47 @@ const MatchPage = () => {
     );
   }
 
-  // Show lobby ONLY when match is still waiting for players
+  // Show completed match results
+  if (match?.status === 'completed' && isPlayerInMatch) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
+        <div className="container mx-auto px-4 py-4 md:py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl">
+              <CardHeader className="text-center p-6">
+                <CardTitle className="text-3xl text-slate-100 mb-4">
+                  {match.winner_wallet === walletAddress ? '🏆 Victory!' : 
+                   match.winner_wallet ? '💀 Defeat' : '🤝 Draw'}
+                </CardTitle>
+                <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-lg px-4 py-2">
+                  Match Completed
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-6 p-6">
+                <WagerActions 
+                  matchId={matchId!} 
+                  match={match} 
+                  walletAddress={walletAddress!} 
+                />
+                <Button 
+                  onClick={() => navigate('/')} 
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Hub
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show lobby - waiting for players or deposits
   const canJoin = !isPlayerInMatch && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
   const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
+  const isWaitingForDeposits = match?.opponent_wallet && match?.status === 'waiting';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -204,20 +221,22 @@ const MatchPage = () => {
             <CardHeader className="text-center p-4 md:p-6">
               <CardTitle className="text-2xl md:text-3xl text-slate-100 flex flex-col md:flex-row items-center justify-center mb-4 gap-3">
                 <Target className="w-6 h-6 md:w-8 md:h-8 text-purple-400" />
-                <span>Real Battle Lobby</span>
+                <span>Battle Lobby</span>
                 <Badge className="bg-emerald-600">30s Battle</Badge>
               </CardTitle>
               <div className="flex items-center justify-center space-x-2">
                 <Clock className="w-4 h-4 md:w-5 md:h-5 text-slate-400" />
                 <span className="text-sm md:text-base text-slate-300">
-                  {isWaitingForOpponent ? 'Waiting for opponent...' : 'Ready for real battle!'}
+                  {isWaitingForOpponent ? 'Waiting for opponent...' : 
+                   isWaitingForDeposits ? 'Waiting for deposits...' : 
+                   'Ready for battle!'}
                 </span>
               </div>
             </CardHeader>
           </Card>
 
           {/* Match Details */}
-          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl">
+          <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl mb-6">
             <CardHeader className="p-4 md:p-6">
               <CardTitle className="text-xl md:text-2xl text-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center">
@@ -279,41 +298,33 @@ const MatchPage = () => {
                   <div className="text-xs text-slate-400">Duration</div>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="text-center space-y-4">
-                {canJoin && (
-                  <>
-                    <div className="text-base md:text-lg text-slate-200 mb-4">
-                      Ready to join this REAL multiplayer battle?
-                    </div>
-                    <Button 
-                      onClick={handleJoinMatch}
-                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-base md:text-lg font-bold py-3 md:py-4"
-                    >
-                      <Play className="w-5 h-5 mr-3" />
-                      ⚡ JOIN REAL BATTLE ({match.wager} GOR)
-                    </Button>
-                  </>
-                )}
-
-                {isCreator && isWaitingForOpponent && (
-                  <div className="text-center space-y-4">
-                    <div className="text-base md:text-lg text-slate-200 mb-2">
-                      🔗 Share this link with your opponent for REAL multiplayer battle:
-                    </div>
-                    <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-xs md:text-sm text-slate-300 font-mono break-all">
-                      {window.location.href}
-                    </div>
-                    <div className="text-amber-400 text-sm flex items-center justify-center">
-                      <Clock className="w-4 h-4 mr-2" />
-                      ⏳ Waiting for opponent to join real battle...
-                    </div>
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
+
+          {/* Wager Actions - This handles all deposit logic */}
+          <WagerActions 
+            matchId={matchId!} 
+            match={match} 
+            walletAddress={walletAddress!} 
+          />
+
+          {/* Creator waiting message */}
+          {isCreator && isWaitingForOpponent && (
+            <Card className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-slate-600/50 backdrop-blur-xl mt-6">
+              <CardContent className="p-6 text-center space-y-4">
+                <div className="text-base md:text-lg text-slate-200">
+                  🔗 Share this link with your opponent:
+                </div>
+                <div className="bg-slate-700/60 border border-slate-600/40 rounded-lg p-3 text-xs md:text-sm text-slate-300 font-mono break-all">
+                  {window.location.href}
+                </div>
+                <div className="text-amber-400 text-sm flex items-center justify-center">
+                  <Clock className="w-4 h-4 mr-2" />
+                  ⏳ Waiting for opponent to join and deposit...
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
