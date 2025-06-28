@@ -13,13 +13,24 @@ interface CreateBattleFormProps {
 }
 
 const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) => {
-  const [wager, setWager] = useState(10);
+  const [wager, setWager] = useState(0.001);
   const [isPrivate, setIsPrivate] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(wager, isPrivate);
+    if (wager >= 0.001) {
+      onSubmit(wager, isPrivate);
+    }
   };
+
+  const handleWagerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setWager(value);
+    }
+  };
+
+  const isValidWager = wager >= 0.001;
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -33,17 +44,22 @@ const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="wager" className="text-slate-200">
-              Wager Amount (GOR)
+              Wager Amount (GORB)
             </Label>
             <Input
               id="wager"
               type="number"
-              min="1"
+              min="0.001"
               max="1000"
+              step="0.001"
               value={wager}
-              onChange={(e) => setWager(Number(e.target.value))}
+              onChange={handleWagerChange}
               className="bg-slate-700 border-slate-600 text-slate-100"
+              placeholder="Enter wager amount (min 0.001)"
             />
+            {!isValidWager && (
+              <p className="text-red-400 text-sm">Minimum wager is 0.001 GORB</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-4 bg-slate-700/40 border border-slate-600/30 rounded-lg">
@@ -75,9 +91,9 @@ const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) 
           <Button 
             type="submit" 
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-            disabled={loading}
+            disabled={loading || !isValidWager}
           >
-            {loading ? 'Creating...' : `Create Battle (${wager} GOR)`}
+            {loading ? 'Creating...' : `Create Battle (${wager.toFixed(4)} GORB)`}
           </Button>
         </form>
       </CardContent>

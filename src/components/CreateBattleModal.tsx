@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ interface CreateBattleModalProps {
 }
 
 const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleModalProps) => {
-  const [wager, setWager] = useState(10);
+  const [wager, setWager] = useState(0.001);
   const [isCreating, setIsCreating] = useState(false);
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -55,7 +56,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
     };
 
     loadBalance();
-  }, [isOpen, isConnected]); // Remove getTokenBalance from dependencies
+  }, [isOpen, isConnected]);
 
   const handleCreateBattle = async () => {
     if (!walletAddress || !isConnected) {
@@ -71,6 +72,15 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
       toast({
         title: "⚠️ Insufficient Balance",
         description: `You need ${wager} GORB to create this battle`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (wager < 0.001) {
+      toast({
+        title: "⚠️ Invalid Wager Amount",
+        description: "Minimum wager is 0.001 GORB",
         variant: "destructive"
       });
       return;
@@ -111,10 +121,18 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
 
   const handleClose = () => {
     onClose();
-    setWager(10);
+    setWager(0.001);
+  };
+
+  const handleWagerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setWager(value);
+    }
   };
 
   const canAfford = balance >= wager;
+  const isValidWager = wager >= 0.001;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -132,7 +150,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
             <div className="flex items-center justify-between">
               <span className="text-slate-300">Your Balance:</span>
               <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-                {balanceLoading ? 'Loading...' : `${balance.toFixed(2)} GORB`}
+                {balanceLoading ? 'Loading...' : `${balance.toFixed(4)} GORB`}
               </Badge>
             </div>
           </div>
@@ -159,21 +177,27 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
               <Input
                 id="wager"
                 type="number"
-                min="1"
-                max={Math.floor(balance)}
+                min="0.001"
+                max={balance}
+                step="0.001"
                 value={wager}
-                onChange={(e) => setWager(Number(e.target.value))}
+                onChange={handleWagerChange}
                 className="pl-10 bg-slate-700/60 border-slate-600/40 text-slate-200"
-                placeholder="Enter wager amount"
+                placeholder="Enter wager amount (min 0.001)"
               />
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">
-                Winner takes {wager * 2} GORB total prize pool
+                Winner takes {(wager * 2).toFixed(4)} GORB total prize pool
               </span>
-              <span className={canAfford ? "text-green-400" : "text-red-400"}>
-                {canAfford ? "✅ Can afford" : "❌ Insufficient balance"}
-              </span>
+              <div className="flex flex-col items-end">
+                <span className={canAfford ? "text-green-400" : "text-red-400"}>
+                  {canAfford ? "✅ Can afford" : "❌ Insufficient balance"}
+                </span>
+                <span className={isValidWager ? "text-green-400" : "text-red-400"}>
+                  {isValidWager ? "✅ Valid amount" : "❌ Min 0.001 GORB"}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -181,16 +205,16 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
           <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3">
             <div className="flex items-center text-amber-300 text-sm">
               <Shield className="w-4 h-4 mr-2" />
-              Your {wager} GORB will be deposited to vault immediately
+              Your {wager.toFixed(4)} GORB will be deposited to vault immediately
             </div>
           </div>
 
           <Button 
             onClick={handleCreateBattle}
-            disabled={isCreating || !isConnected || !canAfford || wager < 1 || balanceLoading}
+            disabled={isCreating || !isConnected || !canAfford || !isValidWager || balanceLoading}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold py-3"
           >
-            {isCreating ? 'Creating & Depositing...' : `🎮 Create & Deposit (${wager} GORB)`}
+            {isCreating ? 'Creating & Depositing...' : `🎮 Create & Deposit (${wager.toFixed(4)} GORB)`}
           </Button>
 
           {!isConnected && (
