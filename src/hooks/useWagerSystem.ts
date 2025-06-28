@@ -25,7 +25,7 @@ export const useWagerSystem = () => {
       // Check if user has sufficient balance
       const balance = await getTokenBalance();
       if (balance < wagerAmount) {
-        throw new Error(`Insufficient GOR balance. Need ${wagerAmount}, have ${balance}`);
+        throw new Error(`Insufficient GOR balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
       }
 
       // Transfer wager to vault
