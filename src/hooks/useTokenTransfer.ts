@@ -1,7 +1,7 @@
 
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { Connection, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 // Central vault wallet (escrow account) - replace with your actual vault address
@@ -12,6 +12,11 @@ export const useTokenTransfer = () => {
   const { publicKey, sendTransaction } = useWallet();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Prevent multiple simultaneous balance requests
+  const balanceRequestRef = useRef(false);
+  const balanceCache = useRef<{ [key: string]: { balance: number; timestamp: number } }>({});
+  const CACHE_DURATION = 5000; // 5 seconds cache
 
   const transferTokens = async (
     toAddress: PublicKey, 
@@ -25,8 +30,15 @@ export const useTokenTransfer = () => {
     setLoading(true);
     
     try {
+      console.log(`Initiating ${purpose} transfer:`, {
+        from: publicKey.toBase58(),
+        to: toAddress.toBase58(),
+        amount,
+        purpose
+      });
+
       // Convert GOR amount to lamports (1 GOR = 1 SOL = 1,000,000,000 lamports)
-      const lamports = amount * LAMPORTS_PER_SOL;
+      const lamports = Math.floor(amount * LAMPORTS_PER_SOL);
 
       // Create transfer instruction
       const transferInstruction = SystemProgram.transfer({
@@ -37,10 +49,26 @@ export const useTokenTransfer = () => {
 
       // Create and send transaction
       const transaction = new Transaction().add(transferInstruction);
+      
+      // Get latest blockhash for better transaction reliability
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      console.log('Sending transaction...');
       const signature = await sendTransaction(transaction, connection);
 
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
+      console.log('Transaction sent, confirming...', signature);
+      // Wait for confirmation with timeout
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
 
       const purposeText = {
         wager: 'Wager deposited',
@@ -52,6 +80,9 @@ export const useTokenTransfer = () => {
         title: `✅ ${purposeText[purpose]}!`,
         description: `Successfully transferred ${amount} GOR`,
       });
+
+      // Clear balance cache after successful transfer
+      balanceCache.current = {};
 
       return signature;
     } catch (error) {
@@ -70,32 +101,60 @@ export const useTokenTransfer = () => {
     }
   };
 
-  const getTokenBalance = async (walletAddress?: PublicKey): Promise<number> => {
+  const getTokenBalance = useCallback(async (walletAddress?: PublicKey): Promise<number> => {
     const targetWallet = walletAddress || publicKey;
     if (!targetWallet) return 0;
 
+    const walletKey = targetWallet.toBase58();
+    const now = Date.now();
+
+    // Check cache first
+    const cached = balanceCache.current[walletKey];
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.balance;
+    }
+
+    // Prevent multiple simultaneous requests for the same wallet
+    if (balanceRequestRef.current) {
+      return cached?.balance || 0;
+    }
+
+    balanceRequestRef.current = true;
+
     try {
-      // console.log('Getting balance for wallet:', targetWallet.toBase58());
-      // console.log('Connection endpoint:', connection.rpcEndpoint);
+      console.log('Getting balance for wallet:', walletKey);
       
-      // Get SOL balance directly
+      // Get SOL balance directly from Gorbagana network
       const balance = await connection.getBalance(targetWallet);
       const balanceInGOR = balance / LAMPORTS_PER_SOL;
 
-      // console.log('Balance in lamports:', balance);
-      // console.log('Balance in GOR:', balanceInGOR);
+      console.log('Balance retrieved:', {
+        wallet: walletKey,
+        lamports: balance,
+        GOR: balanceInGOR
+      });
+
+      // Cache the result
+      balanceCache.current[walletKey] = {
+        balance: balanceInGOR,
+        timestamp: now
+      };
       
       return balanceInGOR;
     } catch (error) {
       console.error('Failed to get balance:', error);
       console.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
-        wallet: targetWallet.toBase58(),
+        wallet: walletKey,
+        rpcEndpoint: connection.rpcEndpoint
       });
       
-      return 0;
+      // Return cached value if available, otherwise 0
+      return cached?.balance || 0;
+    } finally {
+      balanceRequestRef.current = false;
     }
-  };
+  }, [connection, publicKey]);
 
   return {
     transferTokens,

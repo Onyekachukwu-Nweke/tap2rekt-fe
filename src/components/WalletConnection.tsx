@@ -1,4 +1,3 @@
-
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, LogOut, Sparkles, Zap, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useTokenTransfer } from '@/hooks/useTokenTransfer';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const WalletConnection = () => {
   const { connected, publicKey, disconnect, wallet } = useWallet();
@@ -15,32 +14,46 @@ const WalletConnection = () => {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const { toast } = useToast();
   const { getTokenBalance } = useTokenTransfer();
+  
+  // Prevent multiple balance fetches
+  const balanceFetchRef = useRef(false);
+  const lastFetchRef = useRef(0);
+  const FETCH_COOLDOWN = 3000; // 3 seconds between fetches
 
   // Fetch real GORB balance when connected
   useEffect(() => {
     const fetchBalance = async () => {
-      if (connected && publicKey) {
-        setBalanceLoading(true);
-        try {
-          const balance = await getTokenBalance();
-          setGorbBalance(balance);
-        } catch (error) {
-          console.error('Failed to fetch GOR balance:', error);
-          setGorbBalance(0);
-        } finally {
-          setBalanceLoading(false);
-        }
+      if (!connected || !publicKey) return;
+      
+      const now = Date.now();
+      if (balanceFetchRef.current || (now - lastFetchRef.current) < FETCH_COOLDOWN) {
+        return;
+      }
+
+      balanceFetchRef.current = true;
+      lastFetchRef.current = now;
+      setBalanceLoading(true);
+      
+      try {
+        const balance = await getTokenBalance();
+        setGorbBalance(balance);
+      } catch (error) {
+        console.error('Failed to fetch GOR balance:', error);
+        setGorbBalance(0);
+      } finally {
+        setBalanceLoading(false);
+        balanceFetchRef.current = false;
       }
     };
 
     fetchBalance();
-  }, [connected, publicKey]);
+  }, [connected, publicKey]); // Remove getTokenBalance from dependencies
 
   useEffect(() => {
     if (connected) {
       toast({
         title: "🎉 Wallet Connected!",
-        description: `Connected to ${wallet?.adapter.name || 'wallet'} on Solana! 🚀`,
+        description: `Connected to ${wallet?.adapter.name || 'wallet'} on Gorbagana! 🚀`,
       });
     }
   }, [connected, wallet, toast]);
@@ -100,7 +113,7 @@ const WalletConnection = () => {
             
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-slate-400">
-                🌟 {wallet?.adapter.name || 'Solana'} - Devnet
+                🌟 {wallet?.adapter.name || 'Gorbagana'} - Mainnet
               </div>
               <div className="text-sm font-mono font-bold text-slate-200 truncate">
                 {publicKey ? `${publicKey.toBase58().slice(0, 8)}...${publicKey.toBase58().slice(-6)}` : ''}

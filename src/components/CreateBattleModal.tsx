@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +23,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
   const [wager, setWager] = useState(10);
   const [isCreating, setIsCreating] = useState(false);
   const [balance, setBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   const { createMatch } = useMatches();
   const { depositCreatorWager } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
@@ -31,16 +31,31 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
   const navigate = useNavigate();
   const { walletAddress, isConnected } = useWalletAddress();
 
+  // Prevent multiple balance loads
+  const balanceLoadRef = useRef(false);
+
   // Load balance when modal opens
-  React.useEffect(() => {
-    if (isOpen && isConnected) {
-      const loadBalance = async () => {
+  useEffect(() => {
+    const loadBalance = async () => {
+      if (!isOpen || !isConnected || balanceLoadRef.current) return;
+      
+      balanceLoadRef.current = true;
+      setBalanceLoading(true);
+      
+      try {
         const bal = await getTokenBalance();
         setBalance(bal);
-      };
-      loadBalance();
-    }
-  }, [isOpen, isConnected, getTokenBalance]);
+      } catch (error) {
+        console.error('Failed to load balance:', error);
+        setBalance(0);
+      } finally {
+        setBalanceLoading(false);
+        balanceLoadRef.current = false;
+      }
+    };
+
+    loadBalance();
+  }, [isOpen, isConnected]); // Remove getTokenBalance from dependencies
 
   const handleCreateBattle = async () => {
     if (!walletAddress || !isConnected) {
@@ -117,7 +132,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
             <div className="flex items-center justify-between">
               <span className="text-slate-300">Your Balance:</span>
               <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-                {balance.toFixed(2)} GORB
+                {balanceLoading ? 'Loading...' : `${balance.toFixed(2)} GORB`}
               </Badge>
             </div>
           </div>
@@ -172,7 +187,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
 
           <Button 
             onClick={handleCreateBattle}
-            disabled={isCreating || !isConnected || !canAfford || wager < 1}
+            disabled={isCreating || !isConnected || !canAfford || wager < 1 || balanceLoading}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-lg font-bold py-3"
           >
             {isCreating ? 'Creating & Depositing...' : `🎮 Create & Deposit (${wager} GORB)`}
