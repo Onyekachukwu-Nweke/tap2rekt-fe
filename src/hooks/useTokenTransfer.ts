@@ -53,6 +53,7 @@ export const useTokenTransfer = () => {
       // Get latest blockhash for better transaction reliability
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
+      console.log('Blockhash:', blockhash);
       transaction.feePayer = publicKey;
 
       console.log('Sending transaction...');

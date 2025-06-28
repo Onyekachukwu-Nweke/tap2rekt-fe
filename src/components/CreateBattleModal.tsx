@@ -21,7 +21,7 @@ interface CreateBattleModalProps {
 }
 
 const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleModalProps) => {
-  const [wager, setWager] = useState(0.001);
+  const [wager, setWager] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -71,16 +71,16 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
     if (balance < wager) {
       toast({
         title: "⚠️ Insufficient Balance",
-        description: `You need ${wager} GORB to create this battle`,
+        description: `You need ${wager} GOR to create this battle`,
         variant: "destructive"
       });
       return;
     }
 
-    if (wager < 0.001) {
+    if (wager < 1) {
       toast({
         title: "⚠️ Invalid Wager Amount",
-        description: "Minimum wager is 0.001 GORB",
+        description: "Minimum wager is 1 GOR",
         variant: "destructive"
       });
       return;
@@ -121,7 +121,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
 
   const handleClose = () => {
     onClose();
-    setWager(0.001);
+    setWager(1);
   };
 
   const handleWagerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +132,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
   };
 
   const canAfford = balance >= wager;
-  const isValidWager = wager >= 0.001;
+  const isValidWager = wager >= 1;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -177,13 +177,13 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
               <Input
                 id="wager"
                 type="number"
-                min="0.001"
+                min="1"
                 max={balance}
-                step="0.001"
+                step="1"
                 value={wager}
                 onChange={handleWagerChange}
                 className="pl-10 bg-slate-700/60 border-slate-600/40 text-slate-200"
-                placeholder="Enter wager amount (min 0.001)"
+                placeholder="Enter wager amount (min 1 GOR)"
               />
             </div>
             <div className="flex justify-between text-xs">
@@ -195,7 +195,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
                   {canAfford ? "✅ Can afford" : "❌ Insufficient balance"}
                 </span>
                 <span className={isValidWager ? "text-green-400" : "text-red-400"}>
-                  {isValidWager ? "✅ Valid amount" : "❌ Min 0.001 GORB"}
+                  {isValidWager ? "✅ Valid amount" : "❌ Min 1 GORB"}
                 </span>
               </div>
             </div>
