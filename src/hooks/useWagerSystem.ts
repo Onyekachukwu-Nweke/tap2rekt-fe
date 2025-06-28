@@ -14,7 +14,7 @@ export const useWagerSystem = () => {
   const { toast } = useToast();
   const { getMatch } = useMatches();
 
-  const depositWager = useCallback(async (matchId: string, wagerAmount: number) => {
+  const depositCreatorWager = useCallback(async (matchId: string, wagerAmount: number) => {
     if (!publicKey) {
       throw new Error('Wallet not connected');
     }
@@ -25,20 +25,51 @@ export const useWagerSystem = () => {
       // Check if user has sufficient balance
       const balance = await getTokenBalance();
       if (balance < wagerAmount) {
-        throw new Error(`Insufficient GOR balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
+        throw new Error(`Insufficient GORB balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
       }
 
-      // Transfer wager to vault
+      // Transfer creator's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
       toast({
-        title: "💰 Wager Deposited!",
-        description: `${wagerAmount} GOR secured for match`,
+        title: "💰 Creator Wager Deposited!",
+        description: `${wagerAmount} GORB secured in vault`,
       });
 
       return signature;
     } catch (error) {
-      console.error('Wager deposit failed:', error);
+      console.error('Creator wager deposit failed:', error);
+      throw error;
+    } finally {
+      setProcessingWager(false);
+    }
+  }, [publicKey, transferTokens, getTokenBalance, toast]);
+
+  const depositOpponentWager = useCallback(async (matchId: string, wagerAmount: number) => {
+    if (!publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    setProcessingWager(true);
+    
+    try {
+      // Check if user has sufficient balance
+      const balance = await getTokenBalance();
+      if (balance < wagerAmount) {
+        throw new Error(`Insufficient GORB balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
+      }
+
+      // Transfer opponent's wager to vault
+      const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
+      
+      toast({
+        title: "💰 Opponent Wager Deposited!",
+        description: `${wagerAmount} GORB secured in vault - Match can now start!`,
+      });
+
+      return signature;
+    } catch (error) {
+      console.error('Opponent wager deposit failed:', error);
       throw error;
     } finally {
       setProcessingWager(false);
@@ -107,7 +138,7 @@ export const useWagerSystem = () => {
       // For now, we'll simulate the claim
       toast({
         title: "🏆 Winnings Claimed!",
-        description: `${totalWinnings} GOR transferred to your wallet`,
+        description: `${totalWinnings} GORB transferred to your wallet`,
       });
 
       return true;
@@ -124,13 +155,15 @@ export const useWagerSystem = () => {
       const match = await getMatch(matchId);
       if (!match) return null;
 
-      // Since the database doesn't have creator_deposited/opponent_deposited fields,
-      // we'll simulate this based on match status for now
+      // In a real implementation, you'd check the vault for deposits
+      // For now, we'll simulate based on match status
       const bothDeposited = match.status === 'in_progress' || match.status === 'completed';
+      const creatorDeposited = match.status !== 'waiting' || bothDeposited;
+      const opponentDeposited = bothDeposited;
 
       return {
-        creatorDeposited: bothDeposited,
-        opponentDeposited: bothDeposited,
+        creatorDeposited,
+        opponentDeposited,
         canStart: bothDeposited,
         wagerAmount: match.wager
       };
@@ -141,7 +174,8 @@ export const useWagerSystem = () => {
   }, [getMatch]);
 
   return {
-    depositWager,
+    depositCreatorWager,
+    depositOpponentWager,
     requestRefund,
     claimWinnings,
     checkWagerStatus,

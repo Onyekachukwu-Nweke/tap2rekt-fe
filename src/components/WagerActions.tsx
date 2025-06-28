@@ -3,10 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Shield, Trophy, RefreshCw } from 'lucide-react';
+import { Coins, Shield, Trophy, RefreshCw, Users } from 'lucide-react';
 import { useWagerSystem } from '@/hooks/useWagerSystem';
 import { useTokenTransfer } from '@/hooks/useTokenTransfer';
+import { useMatches } from '@/hooks/useMatches';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface WagerActionsProps {
   matchId: string;
@@ -18,7 +20,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const [balance, setBalance] = useState(0);
   const [wagerStatus, setWagerStatus] = useState<any>(null);
   const { 
-    depositWager, 
+    depositOpponentWager, 
     requestRefund, 
     claimWinnings, 
     checkWagerStatus,
@@ -27,12 +29,15 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     processingClaim 
   } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
+  const { joinMatch } = useMatches();
   const { connected } = useWallet();
+  const { toast } = useToast();
 
   const isCreator = match.creator_wallet === walletAddress;
   const isOpponent = match.opponent_wallet === walletAddress;
   const isPlayer = isCreator || isOpponent;
   const isWinner = match.winner_wallet === walletAddress;
+  const canJoin = !isPlayer && match.status === 'waiting' && !match.opponent_wallet;
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,14 +53,38 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     loadData();
   }, [connected, matchId, getTokenBalance, checkWagerStatus]);
 
-  const handleDepositWager = async () => {
+  const handleJoinAndDeposit = async () => {
+    if (balance < match.wager) {
+      toast({
+        title: "⚠️ Insufficient Balance",
+        description: `You need ${match.wager} GORB to join this battle`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      await depositWager(matchId, match.wager);
+      // First join the match
+      await joinMatch(matchId, walletAddress);
+      
+      // Then deposit the opponent's wager
+      await depositOpponentWager(matchId, match.wager);
+      
       // Refresh status after deposit
       const status = await checkWagerStatus(matchId);
       setWagerStatus(status);
+      
+      toast({
+        title: "⚡ Joined & Deposited!",
+        description: "Battle can now begin!",
+      });
     } catch (error) {
-      console.error('Deposit failed:', error);
+      console.error('Join and deposit failed:', error);
+      toast({
+        title: "❌ Join Failed",
+        description: error instanceof Error ? error.message : "Failed to join battle",
+        variant: "destructive"
+      });
     }
   };
 
@@ -75,7 +104,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     }
   };
 
-  if (!isPlayer) return null;
+  if (!isPlayer && !canJoin) return null;
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -83,10 +112,10 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         <CardTitle className="text-white flex items-center justify-between">
           <div className="flex items-center">
             <Coins className="w-5 h-5 mr-2 text-amber-400" />
-            Web3 Wager System
+            Wager System
           </div>
           <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-            {balance.toFixed(2)} GOR
+            {balance.toFixed(2)} GORB
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -113,29 +142,37 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         {/* Actions based on match status */}
         <div className="space-y-3">
           
-          {/* Deposit Wager */}
-          {match.status === 'waiting' && (
-            <Button
-              onClick={handleDepositWager}
-              disabled={processingWager || balance < match.wager}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-            >
-              {processingWager ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Depositing...
-                </>
-              ) : (
-                <>
+          {/* Join & Deposit */}
+          {canJoin && (
+            <div className="space-y-3">
+              <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3">
+                <div className="flex items-center text-blue-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  Deposit Wager ({match.wager} GOR)
-                </>
-              )}
-            </Button>
+                  Joining requires immediate {match.wager} GORB deposit
+                </div>
+              </div>
+              <Button
+                onClick={handleJoinAndDeposit}
+                disabled={processingWager || balance < match.wager}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              >
+                {processingWager ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Joining & Depositing...
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-4 h-4 mr-2" />
+                    Join & Deposit ({match.wager} GORB)
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           {/* Request Refund */}
-          {(match.status === 'waiting' || match.status === 'abandoned') && (
+          {isPlayer && (match.status === 'waiting' || match.status === 'abandoned') && (
             <Button
               onClick={handleRequestRefund}
               disabled={processingRefund}
@@ -171,17 +208,17 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               ) : (
                 <>
                   <Trophy className="w-4 h-4 mr-2" />
-                  Claim Winnings ({match.wager * 2} GOR)
+                  Claim Winnings ({match.wager * 2} GORB)
                 </>
               )}
             </Button>
           )}
 
           {/* Balance Warning */}
-          {balance < match.wager && (
+          {canJoin && balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">
-                ⚠️ Insufficient GOR balance to participate
+                ⚠️ Insufficient GORB balance to join this battle
               </div>
             </div>
           )}
