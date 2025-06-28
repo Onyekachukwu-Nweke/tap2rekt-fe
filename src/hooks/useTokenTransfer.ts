@@ -49,6 +49,8 @@ export const useTokenTransfer = () => {
 
       // Create and send transaction
       const transaction = new Transaction().add(transferInstruction);
+
+      const connection = new Connection('https://rpc.gorbagana.wtf');
       
       // Get latest blockhash for better transaction reliability
       const { blockhash } = await connection.getLatestBlockhash();
@@ -60,14 +62,18 @@ export const useTokenTransfer = () => {
       const signature = await sendTransaction(transaction, connection);
 
       console.log('Transaction sent, confirming...', signature);
-      // Wait for confirmation with timeout
-      const confirmation = await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
-      }, 'confirmed');
 
-      if (confirmation.value.err) {
+      const confirmation = await connection.getSignatureStatus(signature, { searchTransactionHistory: true });
+      console.log('Transaction confirmed:', confirmation);
+
+      const result = confirmation.value;
+      if (result?.confirmationStatus !== 'confirmed' && result?.confirmationStatus !== 'finalized') {
+        console.log("Transaction not confirmed");
+        throw new Error(`Transaction not confirmed: ${JSON.stringify(result)}`);
+      }
+
+      if (confirmation.value?.err) {
+        console.log("Transaction failed");
         throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
 
