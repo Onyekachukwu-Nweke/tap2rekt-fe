@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,21 +56,15 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
   
-      // Use the WebSocket URL from environment or fallback to HTTP
-      const wsUrl = import.meta.env.VITE_WS_URL || 'https://tap2rekt-wss.onrender.com';
-      
-      const socket = io(wsUrl, {
-        transports: ["websocket", "polling"], // Allow fallback to polling
+      const socket = io(import.meta.env.VITE_WS_URL, {
+        transports: ["websocket"],
         auth: { token },
-        query: { matchId, wallet: walletAddress },
-        forceNew: true,
-        timeout: 10000
+        query: { matchId, wallet: walletAddress }
       });
   
       socketRef.current = socket;
   
       socket.on("connect", () => {
-        console.log('Socket.io connected successfully');
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
@@ -81,7 +76,6 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       });
   
       socket.on("disconnect", (reason: string) => {
-        console.log('Socket.io disconnected:', reason);
         setIsConnected(false);
         if (battleState.gameState !== 'finished' && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
@@ -93,27 +87,22 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       });
   
       socket.on("connect_error", (error: any) => {
-        console.error('Socket.io connection error:', error);
         setIsConnected(false);
-        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 5000);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        } else {
-          toast({
-            title: "Connection Error",
-            description: "Failed to connect to battle server",
-            variant: "destructive"
-          });
-        }
+        toast({
+          title: "Connection Error",
+          description: error.message || "Socket.io connection error",
+          variant: "destructive"
+        });
       });
     } catch (error) {
-      console.error('Failed to initialize socket connection:', error);
       setIsConnected(false);
+      toast({
+        title: "Connection Error",
+        description: (error as Error).message || "Socket.io connection error",
+        variant: "destructive"
+      });
     }
-  }, [matchId, walletAddress, toast, battleState.gameState]);
+  }, [matchId, walletAddress]);
 
   const handleMessage = (message: WebSocketMessage) => {
     console.log('Received WebSocket message:', message);
@@ -278,7 +267,6 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
     }
     setIsConnected(false);
     reconnectAttemptsRef.current = maxReconnectAttempts;
-    clearTimers();
   };
 
   useEffect(() => {

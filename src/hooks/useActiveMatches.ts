@@ -6,7 +6,7 @@ export const useActiveMatches = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getMatches } = useMatches(); // Fixed: use getMatches instead of getActiveMatches
+  const { getActiveMatches } = useMatches();
 
   // Use a ref to prevent multiple simultaneous calls
   const [isLoadingRef, setIsLoadingRef] = useState(false);
@@ -18,12 +18,8 @@ export const useActiveMatches = () => {
     setError(null);
     
     try {
-      const allMatches = await getMatches();
-      // Filter for active/waiting matches
-      const activeMatches = allMatches?.filter(match => 
-        match.status === 'waiting' || match.status === 'in_progress'
-      ) || [];
-      setMatches(activeMatches);
+      const activeMatches = await getActiveMatches();
+      setMatches(activeMatches || []);
     } catch (err) {
       console.error('Failed to load active matches:', err);
       setError(err instanceof Error ? err.message : 'Failed to load matches');
@@ -32,11 +28,11 @@ export const useActiveMatches = () => {
       setLoading(false);
       setIsLoadingRef(false);
     }
-  }, [getMatches, isLoadingRef]);
+  }, [getActiveMatches, isLoadingRef]);
 
   useEffect(() => {
     loadMatches();
-  }, []); // Remove getMatches from dependencies to prevent infinite loop
+  }, []); // Remove getActiveMatches from dependencies to prevent infinite loop
 
   return {
     matches,
