@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Coins, Shield, Trophy, RefreshCw, Users, Play } from 'lucide-react';
 import { useWagerSystem } from '@/hooks/useWagerSystem';
-import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useMatches } from '@/hooks/useMatches';
+import { useMatchLobby } from '@/hooks/useMatchLobby';
+import { useMatchLobbyWebSocket } from '@/hooks/useMatchLobbyWebSocket';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,20 +17,21 @@ interface WagerActionsProps {
 }
 
 const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
-  const [balance, setBalance] = useState(0);
-  const [wagerStatus, setWagerStatus] = useState<any>(null);
   const [joiningAndDepositing, setJoiningAndDepositing] = useState(false);
+  
+  // Use optimized hooks
+  const { balance, wagerStatus, refetch } = useMatchLobby(matchId, walletAddress);
+  const { isConnected, lobbyState, sendMessage } = useMatchLobbyWebSocket(matchId, walletAddress);
+  
   const { 
     depositCreatorWager,
     depositOpponentWager, 
     requestRefund, 
-    claimWinnings, 
-    checkWagerStatus,
+    claimWinnings,
     processingWager,
     processingRefund,
     processingClaim 
   } = useWagerSystem();
-  const { getTokenBalance } = useTokenTransfer();
   const { joinMatch } = useMatches();
   const { connected } = useWallet();
   const { toast } = useToast();
@@ -40,20 +41,6 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const isPlayer = isCreator || isOpponent;
   const isWinner = match.winner_wallet === walletAddress;
   const canJoin = !isPlayer && match.status === 'waiting' && !match.opponent_wallet;
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (connected) {
-        const bal = await getTokenBalance();
-        setBalance(bal);
-        
-        const status = await checkWagerStatus(matchId);
-        setWagerStatus(status);
-      }
-    };
-    
-    loadData();
-  }, [connected, matchId, getTokenBalance, checkWagerStatus]);
 
   const handleJoinAndDeposit = async () => {
     if (balance < match.wager) {
@@ -67,15 +54,17 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
 
     setJoiningAndDepositing(true);
     try {
-      // First join the match
       await joinMatch(matchId, walletAddress);
-      
-      // Then deposit the opponent's wager
       await depositOpponentWager(matchId, match.wager);
       
-      // Refresh status after deposit
-      const status = await checkWagerStatus(matchId);
-      setWagerStatus(status);
+      // Notify WebSocket about deposit
+      sendMessage({
+        type: 'deposit_made',
+        role: 'opponent',
+        amount: match.wager
+      });
+      
+      await refetch();
       
       toast({
         title: "⚡ Joined & Deposited!",
@@ -106,9 +95,14 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     try {
       await depositCreatorWager(matchId, match.wager);
       
-      // Refresh status after deposit
-      const status = await checkWagerStatus(matchId);
-      setWagerStatus(status);
+      // Notify WebSocket about deposit
+      sendMessage({
+        type: 'deposit_made',
+        role: 'creator',
+        amount: match.wager
+      });
+      
+      await refetch();
     } catch (error) {
       console.error('Creator deposit failed:', error);
     }
@@ -127,9 +121,14 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     try {
       await depositOpponentWager(matchId, match.wager);
       
-      // Refresh status after deposit
-      const status = await checkWagerStatus(matchId);
-      setWagerStatus(status);
+      // Notify WebSocket about deposit
+      sendMessage({
+        type: 'deposit_made',
+        role: 'opponent',
+        amount: match.wager
+      });
+      
+      await refetch();
     } catch (error) {
       console.error('Opponent deposit failed:', error);
     }
@@ -160,6 +159,11 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           <div className="flex items-center">
             <Coins className="w-5 h-5 mr-2 text-amber-400" />
             Wager System
+            {isConnected && (
+              <Badge className="ml-2 bg-emerald-600 text-xs">
+                🔴 LIVE
+              </Badge>
+            )}
           </div>
           <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
             {balance.toFixed(4)} GORB
@@ -168,19 +172,48 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         
-        {/* Wager Status */}
+        {/* WebSocket Status */}
+        {isPlayer && (
+          <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-slate-300">
+                <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                {isConnected ? 'Real-time updates active' : 'Connecting...'}
+              </div>
+              <div className="text-slate-400">
+                Players: {lobbyState.playerCount}/2
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Optimized Wager Status Display */}
         {wagerStatus && isPlayer && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
               <div className="text-sm text-slate-400 mb-1">Creator Deposit</div>
-              <Badge className={wagerStatus.creatorDeposited ? 'bg-green-600' : 'bg-red-600'}>
-                {wagerStatus.creatorDeposited ? '✅ Confirmed' : '❌ Pending'}
+              <Badge className={
+                wagerStatus.creatorDeposited || lobbyState.deposits.creator 
+                  ? 'bg-green-600' 
+                  : 'bg-red-600'
+              }>
+                {wagerStatus.creatorDeposited || lobbyState.deposits.creator 
+                  ? '✅ Confirmed' 
+                  : '❌ Pending'
+                }
               </Badge>
             </div>
             <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3 text-center">
               <div className="text-sm text-slate-400 mb-1">Opponent Deposit</div>
-              <Badge className={wagerStatus.opponentDeposited ? 'bg-green-600' : 'bg-red-600'}>
-                {wagerStatus.opponentDeposited ? '✅ Confirmed' : '❌ Pending'}
+              <Badge className={
+                wagerStatus.opponentDeposited || lobbyState.deposits.opponent 
+                  ? 'bg-green-600' 
+                  : 'bg-red-600'
+              }>
+                {wagerStatus.opponentDeposited || lobbyState.deposits.opponent 
+                  ? '✅ Confirmed' 
+                  : '❌ Pending'
+                }
               </Badge>
             </div>
           </div>

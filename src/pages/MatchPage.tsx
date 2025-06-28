@@ -3,23 +3,22 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Target, Users, Coins, ArrowLeft, Play, Copy, Check, Clock } from 'lucide-react';
-import { useMatches } from '@/hooks/useMatches';
+import { Target, Users, Coins, ArrowLeft, Copy, Check, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useWalletAddress } from '@/hooks/useWalletAddress';
-import { supabase } from '@/integrations/supabase/client';
+import { useMatchLobby } from '@/hooks/useMatchLobby';
 import RealTimeGame from '@/components/RealTimeGame';
 import WagerActions from '@/components/WagerActions';
 
 const MatchPage = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
-  const [match, setMatch] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
-  const { getMatch } = useMatches();
   const { toast } = useToast();
   const { walletAddress, isConnected } = useWalletAddress();
+
+  // Use optimized match lobby hook
+  const { match, loading, error, refetch } = useMatchLobby(matchId || '', walletAddress || '');
 
   // Redirect to home if wallet is not connected
   useEffect(() => {
@@ -32,62 +31,6 @@ const MatchPage = () => {
       });
     }
   }, [isConnected, navigate, toast]);
-
-  useEffect(() => {
-    const loadMatch = async () => {
-      if (!matchId) return;
-      
-      try {
-        const matchData = await getMatch(matchId);
-        setMatch(matchData);
-        console.log('Match loaded:', matchData);
-      } catch (error) {
-        console.error('Failed to load match:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMatch();
-  }, [matchId, getMatch]);
-
-  // Real-time subscription for match updates
-  useEffect(() => {
-    if (!matchId) return;
-
-    const channel = supabase
-      .channel(`match-${matchId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'matches',
-          filter: `id=eq.${matchId}`
-        },
-        (payload) => {
-          const updatedMatch = payload.new;
-          setMatch(updatedMatch);
-          console.log('Match updated:', updatedMatch);
-          
-          // Show notification when match starts
-          if (updatedMatch.status === 'in_progress' && 
-              updatedMatch.opponent_wallet && 
-              updatedMatch.creator_wallet) {
-            
-            toast({
-              title: "⚡ Both Players Ready!",
-              description: "WebSocket multiplayer battle starting now!",
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [matchId, toast, walletAddress]);
 
   const handleCopyLink = async () => {
     try {
@@ -112,13 +55,17 @@ const MatchPage = () => {
     );
   }
 
-  if (!match) {
+  if (error || !match) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center px-4">
         <Card className="bg-slate-800/50 border-slate-700 max-w-md w-full">
           <CardContent className="p-6 md:p-8 text-center">
-            <div className="text-red-400 text-xl mb-4">Match Not Found</div>
-            <div className="text-slate-400 mb-6">This match doesn't exist or has been removed.</div>
+            <div className="text-red-400 text-xl mb-4">
+              {error || 'Match Not Found'}
+            </div>
+            <div className="text-slate-400 mb-6">
+              {error || "This match doesn't exist or has been removed."}
+            </div>
             <Button onClick={() => navigate('/')} className="bg-gradient-to-r from-purple-600 to-indigo-600 w-full">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Hub
@@ -187,7 +134,7 @@ const MatchPage = () => {
     );
   }
 
-  // Show lobby - waiting for players or deposits
+  // Lobby UI, match details, etc.
   const canJoin = !isPlayerInMatch && match?.status === 'waiting' && !match?.opponent_wallet && walletAddress;
   const isWaitingForOpponent = match?.status === 'waiting' && !match?.opponent_wallet;
   const isWaitingForDeposits = match?.opponent_wallet && match?.status === 'waiting';
@@ -301,7 +248,7 @@ const MatchPage = () => {
             </CardContent>
           </Card>
 
-          {/* Wager Actions - This handles all deposit logic */}
+          {/* Optimized Wager Actions - now with WebSocket support */}
           <WagerActions 
             matchId={matchId!} 
             match={match} 
