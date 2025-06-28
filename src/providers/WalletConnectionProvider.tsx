@@ -20,19 +20,19 @@ interface WalletConnectionProviderProps {
 
 const WalletConnectionProvider: FC<WalletConnectionProviderProps> = ({ children }) => {
   // You can set this to 'devnet', 'testnet', or 'mainnet-beta'
-  const network = WalletAdapterNetwork.Devnet;
+  // const network = WalletAdapterNetwork.Testnet;
   
   // You can also provide a custom RPC endpoint
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  const endpoint = useMemo(() => ('https://rpc.gorbagana.wtf'), []);
 
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
-      new SolflareWalletAdapter({ network }),
+      new SolflareWalletAdapter(),
       new TorusWalletAdapter(),
       new LedgerWalletAdapter(),
     ],
-    [network]
+    []
   );
 
   return (

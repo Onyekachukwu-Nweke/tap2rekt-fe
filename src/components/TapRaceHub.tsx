@@ -56,7 +56,7 @@ const TapRaceHub = ({ onCreateMatch, onJoinMatch, onViewLeaderboard, onPracticeM
           </div>
           <p className="text-xl text-slate-300 max-w-4xl mx-auto font-medium leading-relaxed">
             Challenge opponents in lightning-fast 1v1 tapping battles! 
-            Create matches, stake GORB tokens, and prove you're the fastest tapper on Gorbagana! 🚀
+            Create matches, stake GOR tokens, and prove you're the fastest tapper on Gorbagana! 🚀
           </p>
         </div>
       </div>

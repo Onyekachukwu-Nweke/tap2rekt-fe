@@ -25,7 +25,7 @@ export const useWagerSystem = () => {
       // Check if user has sufficient balance
       const balance = await getTokenBalance();
       if (balance < wagerAmount) {
-        throw new Error(`Insufficient GORB balance. Need ${wagerAmount}, have ${balance}`);
+        throw new Error(`Insufficient GOR balance. Need ${wagerAmount}, have ${balance}`);
       }
 
       // Transfer wager to vault
@@ -33,7 +33,7 @@ export const useWagerSystem = () => {
       
       toast({
         title: "💰 Wager Deposited!",
-        description: `${wagerAmount} GORB secured for match`,
+        description: `${wagerAmount} GOR secured for match`,
       });
 
       return signature;
@@ -107,7 +107,7 @@ export const useWagerSystem = () => {
       // For now, we'll simulate the claim
       toast({
         title: "🏆 Winnings Claimed!",
-        description: `${totalWinnings} GORB transferred to your wallet`,
+        description: `${totalWinnings} GOR transferred to your wallet`,
       });
 
       return true;

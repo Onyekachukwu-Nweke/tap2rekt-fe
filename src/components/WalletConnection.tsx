@@ -22,10 +22,10 @@ const WalletConnection = () => {
       if (connected && publicKey) {
         setBalanceLoading(true);
         try {
-          const balance = await getTokenBalance();
+          const balance = await getTokenBalance(publicKey);
           setGorbBalance(balance);
         } catch (error) {
-          console.error('Failed to fetch GORB balance:', error);
+          console.error('Failed to fetch GOR balance:', error);
           setGorbBalance(0);
         } finally {
           setBalanceLoading(false);
@@ -34,7 +34,7 @@ const WalletConnection = () => {
     };
 
     fetchBalance();
-  }, [connected, publicKey, getTokenBalance]);
+  }, [connected, publicKey]);
 
   useEffect(() => {
     if (connected) {
@@ -81,7 +81,7 @@ const WalletConnection = () => {
         className="border-emerald-500/50 text-emerald-300 bg-gradient-to-r from-emerald-900/50 to-teal-900/50 backdrop-blur-sm px-4 py-2 text-lg font-bold shadow-lg shadow-emerald-500/20"
       >
         <Sparkles className="w-4 h-4 mr-2 text-amber-400" />
-        {balanceLoading ? 'Loading...' : `${gorbBalance.toFixed(2)} GORB`} 💰
+        {balanceLoading ? 'Loading...' : `${gorbBalance.toFixed(2)} GOR`} 💰
       </Badge>
 
       {/* Wallet Info Card */}

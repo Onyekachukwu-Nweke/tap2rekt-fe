@@ -207,7 +207,7 @@ const Index = () => {
               ⚡ Real-time Gaming
             </span>
             <span className="bg-slate-800/60 border border-slate-600/30 px-3 py-1 md:px-4 md:py-2 rounded-full text-slate-300">
-              🏆 GORB Rewards
+              🏆 GOR Rewards
             </span>
           </div>
         </div>

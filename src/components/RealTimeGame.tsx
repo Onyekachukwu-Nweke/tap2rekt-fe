@@ -168,7 +168,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
               </span>
             </div>
             <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-sm md:text-lg px-3 py-1 md:px-4 md:py-2">
-              {match.wager * 2} GORB Prize
+              {match.wager * 2} GOR Prize
             </Badge>
           </CardTitle>
         </CardHeader>

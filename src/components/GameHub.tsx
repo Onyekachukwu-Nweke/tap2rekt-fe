@@ -190,7 +190,7 @@ const GameHub = ({ onSelectGame, playerStats }: GameHubProps) => {
           🚀 Ready to Dominate? 🚀
         </h3>
         <p className="text-xl text-slate-300 mb-6">
-          Join thousands of players competing for glory and GORB tokens!
+          Join thousands of players competing for glory and GOR tokens!
         </p>
         <div className="flex justify-center space-x-4">
           <span className="bg-emerald-900/40 border border-emerald-600/30 px-4 py-2 rounded-full text-emerald-300 font-semibold">

@@ -33,7 +33,7 @@ const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="wager" className="text-slate-200">
-              Wager Amount (GORB)
+              Wager Amount (GOR)
             </Label>
             <Input
               id="wager"
@@ -77,7 +77,7 @@ const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) 
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
             disabled={loading}
           >
-            {loading ? 'Creating...' : `Create Battle (${wager} GORB)`}
+            {loading ? 'Creating...' : `Create Battle (${wager} GOR)`}
           </Button>
         </form>
       </CardContent>

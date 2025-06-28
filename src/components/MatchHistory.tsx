@@ -105,7 +105,7 @@ const MatchHistory = ({ walletAddress, onViewMatch }: MatchHistoryProps) => {
                       </div>
                       <div className="flex items-center space-x-3 text-sm text-slate-400">
                         <div>{formatTimeAgo(match.completed_at)}</div>
-                        <div>{match.wager} GORB</div>
+                        <div>{match.wager} GOR</div>
                         {match.is_private && (
                           <Badge variant="outline" className="text-xs">Private</Badge>
                         )}
@@ -114,7 +114,7 @@ const MatchHistory = ({ walletAddress, onViewMatch }: MatchHistoryProps) => {
                   </div>
                   <div className="flex items-center space-x-3">
                     <Badge className="bg-gradient-to-r from-amber-600 to-orange-600">
-                      {match.wager * 2} GORB
+                      {match.wager * 2} GOR
                     </Badge>
                     {onViewMatch && (
                       <Button 

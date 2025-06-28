@@ -88,7 +88,7 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
                       </div>
                       <div className="flex items-center">
                         <Coins className="w-3 h-3 mr-1" />
-                        {match.wager} GORB
+                        {match.wager} GOR
                       </div>
                     </div>
                   </div>

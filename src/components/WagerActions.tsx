@@ -86,7 +86,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
             Web3 Wager System
           </div>
           <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-            {balance.toFixed(2)} GORB
+            {balance.toFixed(2)} GOR
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -128,7 +128,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               ) : (
                 <>
                   <Shield className="w-4 h-4 mr-2" />
-                  Deposit Wager ({match.wager} GORB)
+                  Deposit Wager ({match.wager} GOR)
                 </>
               )}
             </Button>
@@ -171,7 +171,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               ) : (
                 <>
                   <Trophy className="w-4 h-4 mr-2" />
-                  Claim Winnings ({match.wager * 2} GORB)
+                  Claim Winnings ({match.wager * 2} GOR)
                 </>
               )}
             </Button>
@@ -181,7 +181,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           {balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">
-                ⚠️ Insufficient GORB balance to participate
+                ⚠️ Insufficient GOR balance to participate
               </div>
             </div>
           )}
