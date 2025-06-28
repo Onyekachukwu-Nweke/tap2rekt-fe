@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useToast } from "@/hooks/use-toast";
@@ -70,8 +71,11 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
   }, [lobbyId, wallet, role, toast]);
 
   const sendMessage = (type: string, payload: any) => {
-    if (socketRef.current) {
+    if (socketRef.current && socketRef.current.connected) {
+      console.log('Sending WebSocket message:', type, payload);
       socketRef.current.emit(type, payload);
+    } else {
+      console.warn('WebSocket not connected, message not sent:', type, payload);
     }
   };
 

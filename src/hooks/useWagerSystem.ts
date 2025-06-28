@@ -15,7 +15,7 @@ export const useWagerSystem = () => {
   const { toast } = useToast();
   const { getMatch } = useMatches();
 
-  const depositCreatorWager = useCallback(async (matchId: string, wagerAmount: number) => {
+  const depositCreatorWager = useCallback(async (matchId: string, wagerAmount: number, onDepositConfirmed?: () => void) => {
     if (!publicKey) {
       throw new Error('Wallet not connected');
     }
@@ -41,6 +41,11 @@ export const useWagerSystem = () => {
         })
         .eq('id', matchId);
 
+      // Only notify WebSocket AFTER database is updated
+      if (onDepositConfirmed) {
+        onDepositConfirmed();
+      }
+
       toast({
         title: "💰 Creator Wager Deposited!",
         description: `${wagerAmount} GORB secured in vault`,
@@ -55,7 +60,7 @@ export const useWagerSystem = () => {
     }
   }, [publicKey, transferTokens, getTokenBalance, toast]);
 
-  const depositOpponentWager = useCallback(async (matchId: string, wagerAmount: number) => {
+  const depositOpponentWager = useCallback(async (matchId: string, wagerAmount: number, onDepositConfirmed?: () => void) => {
     if (!publicKey) {
       throw new Error('Wallet not connected');
     }
@@ -93,6 +98,11 @@ export const useWagerSystem = () => {
 
       if (error) {
         throw new Error(`Failed to update match status: ${error.message}`);
+      }
+
+      // Only notify WebSocket AFTER database is updated AND match status is changed
+      if (onDepositConfirmed) {
+        onDepositConfirmed();
       }
       
       toast({

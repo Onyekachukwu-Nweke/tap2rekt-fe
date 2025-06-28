@@ -67,20 +67,21 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       // First join the match
       await joinMatch(matchId, walletAddress);
       
-      // Then deposit the wager (this will also start the match if creator deposited)
-      await depositOpponentWager(matchId, match.wager);
-      
-      // Notify WebSocket about deposit
-      sendMessage('deposit_made', {
-        role: 'opponent',
-        amount: match.wager
+      // Then deposit the wager with callback to notify WebSocket only after confirmation
+      await depositOpponentWager(matchId, match.wager, () => {
+        // Only send WebSocket message after database confirms the deposit
+        sendMessage('deposit_made', {
+          lobbyId: matchId,
+          wallet: walletAddress,
+          role: 'opponent'
+        });
       });
       
       await refetch();
       
       toast({
         title: "⚡ Joined & Deposited!",
-        description: "Deposit confirmed - waiting for match to start!",
+        description: "Deposit confirmed - match starting!",
       });
     } catch (error) {
       console.error('Join and deposit failed:', error);
@@ -105,12 +106,13 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     }
 
     try {
-      await depositCreatorWager(matchId, match.wager);
-      
-      // Notify WebSocket about deposit
-      sendMessage('deposit_made', {
-        role: 'creator',
-        amount: match.wager
+      await depositCreatorWager(matchId, match.wager, () => {
+        // Only send WebSocket message after database confirms the deposit
+        sendMessage('deposit_made', {
+          lobbyId: matchId,
+          wallet: walletAddress,
+          role: 'creator'
+        });
       });
       
       await refetch();
@@ -130,12 +132,13 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     }
 
     try {
-      await depositOpponentWager(matchId, match.wager);
-      
-      // Notify WebSocket about deposit
-      sendMessage('deposit_made', {
-        role: 'opponent',
-        amount: match.wager
+      await depositOpponentWager(matchId, match.wager, () => {
+        // Only send WebSocket message after database confirms the deposit
+        sendMessage('deposit_made', {
+          lobbyId: matchId,
+          wallet: walletAddress,
+          role: 'opponent'
+        });
       });
       
       await refetch();
