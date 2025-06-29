@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useMatchLobby } from '@/hooks/useMatchLobby';
 import { useMatchLobbyWebSocket } from '@/hooks/useMatchLobbyWebSocket';
 import { supabase } from '@/integrations/supabase/client';
+import ClaimWinnings from './ClaimWinnings';
 
 interface WagerActionsProps {
   matchId: string;
@@ -105,9 +105,20 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     }
   };
 
-  // Don't show actions if match is completed
-  if (match?.status === 'completed') {
-    return null;
+  // If match is completed, show claim winnings component
+  if (match.status === 'completed') {
+    return (
+      <ClaimWinnings 
+        matchId={matchId}
+        onClaimSuccess={() => {
+          // Optionally refresh match data or show success message
+          toast({
+            title: "🎉 Success!",
+            description: "Winnings claimed successfully",
+          });
+        }}
+      />
+    );
   }
 
   return (

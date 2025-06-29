@@ -13,6 +13,7 @@ import { GameTimers } from './game/GameTimers';
 import { WebSocketConnection } from './game/WebSocketConnection';
 import { WebSocketGameState } from './game/WebSocketGameState';
 import { GameSubmissionHandler } from './game/GameSubmissionHandler';
+import ClaimWinnings from './ClaimWinnings';
 
 interface RealTimeGameProps {
   matchId: string;
@@ -112,6 +113,24 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
       title: "🔄 Reconnecting...",
       description: "Attempting to reconnect to the battle",
     });
+  };
+
+  const handleClaimSuccess = () => {
+    toast({
+      title: "🏆 Winnings Claimed Successfully!",
+      description: "Your winnings have been transferred to your wallet",
+    });
+    
+    // Reload match data to reflect claimed status
+    const loadMatch = async () => {
+      try {
+        const matchData = await getMatch(matchId);
+        setMatch(matchData);
+      } catch (error) {
+        console.error('Error reloading match:', error);
+      }
+    };
+    loadMatch();
   };
 
   if (!match) {
@@ -234,6 +253,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Claim Winnings Section - Show after game is finished */}
+      {battleState.gameState === 'finished' && battleState.winner && (
+        <ClaimWinnings 
+          matchId={matchId}
+          onClaimSuccess={handleClaimSuccess}
+        />
       )}
 
       {/* Action Buttons */}

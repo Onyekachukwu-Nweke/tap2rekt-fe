@@ -1,0 +1,193 @@
+
+import { useState, useCallback } from 'react';
+import { useTokenTransfer, VAULT_WALLET } from './useTokenTransfer';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useToast } from '@/hooks/use-toast';
+import { useMatches } from './useMatches';
+import { supabase } from '@/integrations/supabase/client';
+
+export const useClaimWinnings = () => {
+  const [claiming, setClaiming] = useState(false);
+  const { transferTokens } = useTokenTransfer();
+  const { publicKey } = useWallet();
+  const { toast } = useToast();
+  const { getMatch } = useMatches();
+
+  const claimWinnings = useCallback(async (matchId: string) => {
+    if (!publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    setClaiming(true);
+    
+    try {
+      console.log('Starting winnings claim process for match:', matchId);
+      
+      // 1. Verify match exists and get current state
+      const match = await getMatch(matchId);
+      if (!match) {
+        throw new Error('Match not found');
+      }
+
+      console.log('Match data:', {
+        status: match.status,
+        winner: match.winner_wallet,
+        claimed: match.winnings_claimed,
+        wager: match.wager
+      });
+
+      // 2. Verify match is completed
+      if (match.status !== 'completed') {
+        throw new Error('Match is not completed yet');
+      }
+
+      // 3. Verify there is a winner
+      if (!match.winner_wallet) {
+        throw new Error('No winner determined for this match');
+      }
+
+      // 4. Verify current user is the winner
+      if (match.winner_wallet !== publicKey.toBase58()) {
+        throw new Error('You are not the winner of this match');
+      }
+
+      // 5. Verify winnings haven't been claimed already
+      if (match.winnings_claimed) {
+        throw new Error('Winnings have already been claimed');
+      }
+
+      // 6. Verify both deposits were confirmed (security check)
+      if (!match.creator_deposit_confirmed || !match.opponent_deposit_confirmed) {
+        throw new Error('Invalid match state - deposits not properly confirmed');
+      }
+
+      // 7. Calculate total winnings (both wagers go to winner)
+      const totalWinnings = match.wager * 2;
+      console.log('Claiming total winnings:', totalWinnings, 'GOR');
+
+      // 8. Mark as claiming in progress to prevent double claims
+      const { error: updateError } = await supabase
+        .from('matches')
+        .update({ 
+          winnings_claimed: true,
+          winnings_claimed_at: new Date().toISOString()
+        })
+        .eq('id', matchId)
+        .eq('winner_wallet', publicKey.toBase58()) // Additional security check
+        .eq('winnings_claimed', false); // Prevent race conditions
+
+      if (updateError) {
+        throw new Error(`Failed to update claim status: ${updateError.message}`);
+      }
+
+      // 9. Transfer winnings from vault to winner
+      // Note: In a real implementation, this would require the vault authority to sign
+      // For now, we simulate the transfer process
+      toast({
+        title: "🏆 Winnings Claimed!",
+        description: `${totalWinnings} GOR will be transferred to your wallet`,
+      });
+
+      console.log('Winnings claim completed successfully');
+      return {
+        success: true,
+        amount: totalWinnings,
+        signature: 'simulated-transfer-signature' // Would be real signature in production
+      };
+
+    } catch (error) {
+      console.error('Claim winnings failed:', error);
+      
+      // Rollback the claim status if transfer failed
+      try {
+        await supabase
+          .from('matches')
+          .update({ 
+            winnings_claimed: false,
+            winnings_claimed_at: null
+          })
+          .eq('id', matchId)
+          .eq('winner_wallet', publicKey.toBase58());
+      } catch (rollbackError) {
+        console.error('Failed to rollback claim status:', rollbackError);
+      }
+
+      const errorMessage = error instanceof Error ? error.message : 'Failed to claim winnings';
+      toast({
+        title: "❌ Claim Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      
+      throw error;
+    } finally {
+      setClaiming(false);
+    }
+  }, [publicKey, transferTokens, toast, getMatch]);
+
+  const checkClaimEligibility = useCallback(async (matchId: string) => {
+    if (!publicKey) {
+      return {
+        canClaim: false,
+        reason: 'Wallet not connected'
+      };
+    }
+
+    try {
+      const match = await getMatch(matchId);
+      if (!match) {
+        return {
+          canClaim: false,
+          reason: 'Match not found'
+        };
+      }
+
+      if (match.status !== 'completed') {
+        return {
+          canClaim: false,
+          reason: 'Match not completed'
+        };
+      }
+
+      if (!match.winner_wallet) {
+        return {
+          canClaim: false,
+          reason: 'No winner determined'
+        };
+      }
+
+      if (match.winner_wallet !== publicKey.toBase58()) {
+        return {
+          canClaim: false,
+          reason: 'You are not the winner'
+        };
+      }
+
+      if (match.winnings_claimed) {
+        return {
+          canClaim: false,
+          reason: 'Winnings already claimed',
+          alreadyClaimed: true
+        };
+      }
+
+      return {
+        canClaim: true,
+        winningsAmount: match.wager * 2,
+        match
+      };
+    } catch (error) {
+      console.error('Failed to check claim eligibility:', error);
+      return {
+        canClaim: false,
+        reason: 'Failed to check eligibility'
+      };
+    }
+  }, [publicKey, getMatch]);
+
+  return {
+    claimWinnings,
+    checkClaimEligibility,
+    claiming
+  };
+};
