@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface RealTimeTapsState {
@@ -13,48 +13,29 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
     isConnected: false
   });
 
-  const channelRef = useRef<any>(null);
-  const lastTapRef = useRef(0);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // Throttled tap update to prevent spam
+  // Send real-time tap update immediately (no throttling for real-time feel)
   const sendTapUpdate = useCallback(async (tapCount: number) => {
-    if (!channelRef.current || !mountedRef.current) return;
-    
-    const now = Date.now();
-    // Throttle tap updates to max 10 per second
-    if (now - lastTapRef.current < 100) return;
-    
-    lastTapRef.current = now;
-
     try {
-      await channelRef.current.send({
+      const channel = supabase.channel(`match-taps-${matchId}`);
+      await channel.send({
         type: 'broadcast',
         event: 'tap_update',
         payload: {
           wallet: walletAddress,
           taps: tapCount,
-          timestamp: now
+          timestamp: Date.now()
         }
       });
     } catch (error) {
       console.error('Failed to send tap update:', error);
     }
-  }, [walletAddress]);
+  }, [matchId, walletAddress]);
 
   // Send final score when game ends
   const sendFinalScore = useCallback(async (finalScore: number) => {
-    if (!channelRef.current || !mountedRef.current) return;
-
     try {
-      await channelRef.current.send({
+      const channel = supabase.channel(`match-taps-${matchId}`);
+      await channel.send({
         type: 'broadcast',
         event: 'final_score_update',
         payload: {
@@ -66,35 +47,26 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
     } catch (error) {
       console.error('Failed to send final score update:', error);
     }
-  }, [walletAddress]);
+  }, [matchId, walletAddress]);
 
   useEffect(() => {
-    if (!matchId || !walletAddress || !mountedRef.current) return;
+    if (!matchId || !walletAddress) return;
 
     // Create a single channel for this match
     const channel = supabase
       .channel(`match-taps-${matchId}`)
       .on('broadcast', { event: 'tap_update' }, (payload) => {
-        if (!mountedRef.current) return;
-        
         const { wallet, taps } = payload.payload;
         
-        setState(prev => {
-          // Only update if the tap count actually changed
-          if (prev.playerTaps[wallet] === taps) return prev;
-          
-          return {
-            ...prev,
-            playerTaps: {
-              ...prev.playerTaps,
-              [wallet]: taps
-            }
-          };
-        });
+        setState(prev => ({
+          ...prev,
+          playerTaps: {
+            ...prev.playerTaps,
+            [wallet]: taps
+          }
+        }));
       })
       .on('broadcast', { event: 'final_score_update' }, (payload) => {
-        if (!mountedRef.current) return;
-        
         const { wallet, finalScore } = payload.payload;
         
         setState(prev => ({
@@ -106,21 +78,14 @@ export const useRealTimeTaps = (matchId: string, walletAddress: string) => {
         }));
       })
       .subscribe((status) => {
-        if (mountedRef.current) {
-          setState(prev => ({
-            ...prev,
-            isConnected: status === 'SUBSCRIBED'
-          }));
-        }
+        setState(prev => ({
+          ...prev,
+          isConnected: status === 'SUBSCRIBED'
+        }));
       });
 
-    channelRef.current = channel;
-
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      supabase.removeChannel(channel);
     };
   }, [matchId, walletAddress]);
 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMatches } from './useMatches';
 import { useWagerSystem } from './useWagerSystem';
@@ -25,16 +26,11 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
   const { checkWagerStatus } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
   
-  // Prevent multiple simultaneous calls
-  const updateInProgressRef = useRef(false);
+  // Prevent multiple simultaneous calls and infinite loops
+  const loadingRef = useRef(false);
   const mountedRef = useRef(true);
   const lastUpdateRef = useRef(0);
-  const stateRef = useRef(state);
-  
-  // Keep state ref updated
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const balanceCache = useRef<{ value: number; timestamp: number } | null>(null);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -44,18 +40,15 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
     };
   }, []);
   
-  // Optimized update function with better debouncing
+  // Stable update function with proper debouncing
   const updateState = useCallback(async (force = false) => {
-    if (!mountedRef.current || !matchId || !walletAddress) return;
+    if (!mountedRef.current || (loadingRef.current && !force)) return;
     
     const now = Date.now();
+    // Prevent updates more frequently than every 3 seconds unless forced
+    if (!force && now - lastUpdateRef.current < 3000) return;
     
-    // Prevent updates more frequently than every 5 seconds unless forced
-    if (!force && (updateInProgressRef.current || now - lastUpdateRef.current < 5000)) {
-      return;
-    }
-    
-    updateInProgressRef.current = true;
+    loadingRef.current = true;
     lastUpdateRef.current = now;
     
     try {
@@ -64,42 +57,38 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
       if (!mountedRef.current) return;
       
       if (!matchData) {
-        if (mountedRef.current) {
-          setState(prev => ({ ...prev, error: 'Match not found', loading: false }));
-        }
+        setState(prev => ({ ...prev, error: 'Match not found', loading: false }));
         return;
       }
 
-      // Only get balance if really needed (match is waiting)
-      let balance = stateRef.current.balance;
+      // Get balance with caching for waiting matches
+      let balance = 0;
       if (matchData.status === 'waiting') {
+        if (balanceCache.current && now - balanceCache.current.timestamp < 30000) {
+          balance = balanceCache.current.value;
+        } else {
+          balance = await getTokenBalance();
+          if (mountedRef.current) {
+            balanceCache.current = { value: balance, timestamp: now };
+          }
+        }
+      } else {
         balance = await getTokenBalance();
-        if (!mountedRef.current) return;
       }
+
+      if (!mountedRef.current) return;
 
       // Get wager status
       const wagerStatus = await checkWagerStatus(matchId);
-      if (!mountedRef.current) return;
 
-      // Only update state if something actually changed
-      const newState = {
-        match: matchData,
-        balance,
-        wagerStatus,
-        loading: false,
-        error: null
-      };
-
-      // Deep comparison to prevent unnecessary re-renders
-      const stateChanged = 
-        JSON.stringify(stateRef.current.match) !== JSON.stringify(newState.match) ||
-        stateRef.current.balance !== newState.balance ||
-        JSON.stringify(stateRef.current.wagerStatus) !== JSON.stringify(newState.wagerStatus) ||
-        stateRef.current.loading !== newState.loading ||
-        stateRef.current.error !== newState.error;
-
-      if (stateChanged && mountedRef.current) {
-        setState(newState);
+      if (mountedRef.current) {
+        setState({
+          match: matchData,
+          balance,
+          wagerStatus,
+          loading: false,
+          error: null
+        });
       }
     } catch (error) {
       console.error('Error updating match lobby state:', error);
@@ -111,18 +100,16 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
         }));
       }
     } finally {
-      updateInProgressRef.current = false;
+      loadingRef.current = false;
     }
-  }, [matchId, walletAddress, getMatch, checkWagerStatus, getTokenBalance]);
+  }, [matchId, getMatch, checkWagerStatus, getTokenBalance]);
 
-  // Initial load - only run once per matchId change
+  // Initial load only once
   useEffect(() => {
-    if (!matchId || !walletAddress) return;
-    
     let mounted = true;
     
     const initialLoad = async () => {
-      if (mounted && mountedRef.current) {
+      if (mounted) {
         await updateState(true);
       }
     };
@@ -132,12 +119,10 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
     return () => {
       mounted = false;
     };
-  }, [matchId, walletAddress]); // Removed updateState from deps to prevent loops
+  }, [matchId]); // Only depend on matchId, not updateState
 
-  // Real-time subscription with better throttling
+  // Real-time subscription with better debouncing
   useEffect(() => {
-    if (!matchId) return;
-    
     let timeoutId: NodeJS.Timeout;
     
     const channel = supabase
@@ -151,13 +136,13 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
           filter: `id=eq.${matchId}`
         },
         () => {
-          // Increased debounce to prevent excessive calls
+          // Debounce updates by 3 seconds to prevent excessive calls
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
             if (mountedRef.current) {
               updateState(true);
             }
-          }, 5000); // 5 second debounce
+          }, 3000);
         }
       )
       .subscribe();
@@ -166,9 +151,11 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
       clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [matchId, updateState]);
+  }, [matchId]); // Only depend on matchId
 
   const refetch = useCallback(() => {
+    // Clear cache and force update
+    balanceCache.current = null;
     updateState(true);
   }, [updateState]);
 
