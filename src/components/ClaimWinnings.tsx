@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Coins, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useClaimWinnings } from '@/hooks/useClaimWinnings';
-import { useToast } from '@/hooks/use-toast';
 
 interface ClaimWinningsProps {
   matchId: string;
@@ -16,23 +15,31 @@ const ClaimWinnings = ({ matchId, onClaimSuccess }: ClaimWinningsProps) => {
   const [eligibility, setEligibility] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { claimWinnings, checkClaimEligibility, claiming } = useClaimWinnings();
-  const { toast } = useToast();
 
-  // Check eligibility on mount and when match changes
+  // Check eligibility only once on mount
   useEffect(() => {
+    let mounted = true;
+    
     const checkEligibility = async () => {
-      setLoading(true);
       try {
         const result = await checkClaimEligibility(matchId);
-        setEligibility(result);
+        if (mounted) {
+          setEligibility(result);
+          setLoading(false);
+        }
       } catch (error) {
         console.error('Failed to check claim eligibility:', error);
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkEligibility();
+    
+    return () => {
+      mounted = false;
+    };
   }, [matchId, checkClaimEligibility]);
 
   const handleClaim = async () => {
@@ -40,16 +47,18 @@ const ClaimWinnings = ({ matchId, onClaimSuccess }: ClaimWinningsProps) => {
       const result = await claimWinnings(matchId);
       
       if (result.success) {
-        // Refresh eligibility to show claimed state
-        const updatedEligibility = await checkClaimEligibility(matchId);
-        setEligibility(updatedEligibility);
+        // Update eligibility to show claimed state
+        setEligibility({
+          canClaim: false,
+          reason: 'Winnings already claimed',
+          alreadyClaimed: true
+        });
         
         if (onClaimSuccess) {
           onClaimSuccess();
         }
       }
     } catch (error) {
-      // Error handling is done in the hook
       console.error('Claim failed:', error);
     }
   };
@@ -65,7 +74,13 @@ const ClaimWinnings = ({ matchId, onClaimSuccess }: ClaimWinningsProps) => {
   }
 
   if (!eligibility) {
-    return null;
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="p-6 text-center">
+          <div className="text-red-400">Unable to check claim eligibility</div>
+        </CardContent>
+      </Card>
+    );
   }
 
   // Already claimed state

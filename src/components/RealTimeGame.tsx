@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,39 +33,55 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  console.log('RealTimeGame - Current battle state:', battleState);
-
-  // Load player stats
+  // Load player stats only once
   useEffect(() => {
+    let mounted = true;
+    
     const loadPlayerStats = async () => {
       if (walletAddress) {
         try {
           const stats = await getPlayerStats(walletAddress);
-          setPlayerStats(stats);
+          if (mounted) {
+            setPlayerStats(stats);
+          }
         } catch (error) {
-          console.warn('Could not load player stats:', error);
+          // Silently handle stats loading error
         }
       }
     };
+    
     loadPlayerStats();
+    
+    return () => {
+      mounted = false;
+    };
   }, [walletAddress, getPlayerStats]);
 
-  // Load match data
+  // Load match data only once
   useEffect(() => {
+    let mounted = true;
+    
     const loadMatch = async () => {
       try {
         const matchData = await getMatch(matchId);
-        setMatch(matchData);
-        
-        if (matchData?.status === 'completed') {
-          await loadCompletedMatchData();
-          return;
+        if (mounted) {
+          setMatch(matchData);
+          
+          if (matchData?.status === 'completed') {
+            await loadCompletedMatchData();
+            return;
+          }
         }
       } catch (error) {
         console.error('Error loading match:', error);
       }
     };
+    
     loadMatch();
+    
+    return () => {
+      mounted = false;
+    };
   }, [matchId, getMatch]);
 
   const loadCompletedMatchData = async () => {
@@ -86,7 +103,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   useEffect(() => {
     if (battleState.gameState === 'finished' && battleState.winner && !hasSubmittedScore) {
       const myScore = battleState.playerTaps[walletAddress] || 0;
-      console.log('Game finished, submitting score:', myScore);
       submitScore(myScore);
       setShowPostGame(true);
       
@@ -193,14 +209,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </CardContent>
       </Card>
 
-      {/* Game Timers - Using WebSocket state directly */}
+      {/* Game Timers */}
       <GameTimers 
         gameState={battleState.gameState}
         countdownTime={battleState.countdownTime}
         timeLeft={battleState.gameTime}
       />
 
-      {/* Game Area - Using WebSocket state directly */}
+      {/* Game Area */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <WebSocketGameState
@@ -227,7 +243,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         onRetrySubmission={handleRetrySubmission}
       />
 
-      {/* Player Stats Display */}
+      {/* Player Stats Display - Only show when game is finished */}
       {battleState.gameState === 'finished' && playerStats && showPostGame && battleState.winner && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader className="p-4 md:p-6">
@@ -255,7 +271,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </Card>
       )}
 
-      {/* Claim Winnings Section - Show after game is finished */}
+      {/* Claim Winnings Section - Show when game is finished */}
       {battleState.gameState === 'finished' && battleState.winner && (
         <ClaimWinnings 
           matchId={matchId}

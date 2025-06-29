@@ -7,10 +7,8 @@ import {
   Connection, 
   SystemProgram, 
   Transaction, 
-  sendAndConfirmTransaction, 
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
-import { useTokenTransfer, VAULT_WALLET } from './useTokenTransfer';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMatches } from './useMatches';
@@ -18,7 +16,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useClaimWinnings = () => {
   const [claiming, setClaiming] = useState(false);
-  const { transferTokens } = useTokenTransfer();
   const { publicKey } = useWallet();
   const { toast } = useToast();
   const { getMatch } = useMatches();
@@ -31,20 +28,11 @@ export const useClaimWinnings = () => {
     setClaiming(true);
     
     try {
-      console.log('Starting winnings claim process for match:', matchId);
-      
       // 1. Verify match exists and get current state
       const match = await getMatch(matchId);
       if (!match) {
         throw new Error('Match not found');
       }
-
-      console.log('Match data:', {
-        status: match.status,
-        winner: match.winner_wallet,
-        claimed: match.winnings_claimed,
-        wager: match.wager
-      });
 
       // 2. Verify match is completed
       if (match.status !== 'completed') {
@@ -73,7 +61,6 @@ export const useClaimWinnings = () => {
 
       // 7. Calculate total winnings (both wagers go to winner)
       const totalWinnings = match.wager * 2;
-      console.log('Claiming total winnings:', totalWinnings, 'GOR');
 
       // 8. Mark as claiming in progress to prevent double claims
       const { error: updateError } = await supabase
@@ -83,8 +70,8 @@ export const useClaimWinnings = () => {
           winnings_claimed_at: new Date().toISOString()
         })
         .eq('id', matchId)
-        .eq('winner_wallet', publicKey.toBase58()) // Additional security check
-        .eq('winnings_claimed', false); // Prevent race conditions
+        .eq('winner_wallet', publicKey.toBase58())
+        .eq('winnings_claimed', false);
 
       if (updateError) {
         throw new Error(`Failed to update claim status: ${updateError.message}`);
@@ -93,12 +80,11 @@ export const useClaimWinnings = () => {
       // 9. Transfer winnings from vault to winner
       const vaultPrivateKeyBase58 = import.meta.env.VITE_VAULT_PRIVATE_KEY;
       if (!vaultPrivateKeyBase58) {
-        throw new Error('Vault private key not set in env');
+        throw new Error('Vault private key not configured');
       }
 
       const vaultKeypair = Keypair.fromSecretKey(bs58.decode(vaultPrivateKeyBase58));
-
-      const connection = new Connection(import.meta.env.VITE_RPC_ENDPOINT, 'confirmed');
+      const connection = new Connection(import.meta.env.VITE_RPC_ENDPOINT || 'https://rpc.gorbagana.wtf', 'confirmed');
       const winnerPublicKey = new PublicKey(match.winner_wallet);
 
       const lamports = Math.floor(totalWinnings * LAMPORTS_PER_SOL);
@@ -121,21 +107,18 @@ export const useClaimWinnings = () => {
       const rawTx = transaction.serialize();
       const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: false });
 
-      // Optionally poll for confirmation
+      // Confirm transaction
       await connection.confirmTransaction(signature, 'confirmed');
       
-      // Note: In a real implementation, this would require the vault authority to sign
-      // For now, we simulate the transfer process
       toast({
         title: "🏆 Winnings Claimed!",
-        description: `${totalWinnings} GOR will be transferred to your wallet`,
+        description: `${totalWinnings} GOR has been transferred to your wallet`,
       });
 
-      console.log('Winnings claim completed successfully');
       return {
         success: true,
         amount: totalWinnings,
-        signature: 'simulated-transfer-signature' // Would be real signature in production
+        signature
       };
 
     } catch (error) {
@@ -166,7 +149,7 @@ export const useClaimWinnings = () => {
     } finally {
       setClaiming(false);
     }
-  }, [publicKey, transferTokens, toast, getMatch]);
+  }, [publicKey, toast, getMatch]);
 
   const checkClaimEligibility = useCallback(async (matchId: string) => {
     if (!publicKey) {
