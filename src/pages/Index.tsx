@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TapRaceHub from '@/components/TapRaceHub';
 import TapRaceGame from '@/components/TapRaceGame';
 import TapRaceLeaderboard from '@/components/TapRaceLeaderboard';
@@ -21,10 +21,10 @@ const Index = () => {
   const { walletAddress, isConnected } = useWalletAddress();
   const { getPlayerStats } = useMatches();
 
-  // Load real player stats from database only when wallet is connected
-  useEffect(() => {
-    const loadPlayerStats = async () => {
-      if (walletAddress && isConnected) {
+  // Memoized stats loader to prevent excessive calls
+  const loadPlayerStats = useCallback(async () => {
+    if (walletAddress && isConnected) {
+      try {
         const stats = await getPlayerStats(walletAddress);
         if (stats) {
           setPlayerStats({
@@ -34,28 +34,33 @@ const Index = () => {
             totalEarnings: 0 // We don't track earnings yet
           });
         }
-      } else {
-        // Reset stats when wallet is disconnected
-        setPlayerStats({
-          gamesPlayed: 0,
-          bestScore: 0,
-          totalWins: 0,
-          totalEarnings: 0
-        });
+      } catch (error) {
+        console.error('Failed to load player stats:', error);
       }
-    };
-
-    loadPlayerStats();
+    } else {
+      // Reset stats when wallet is disconnected
+      setPlayerStats({
+        gamesPlayed: 0,
+        bestScore: 0,
+        totalWins: 0,
+        totalEarnings: 0
+      });
+    }
   }, [walletAddress, isConnected, getPlayerStats]);
 
-  const updateStats = (score: number, won: boolean, earnings: number = 0) => {
+  // Load stats only when wallet connection changes
+  useEffect(() => {
+    loadPlayerStats();
+  }, [loadPlayerStats]);
+
+  const updateStats = useCallback((score: number, won: boolean, earnings: number = 0) => {
     setPlayerStats(prev => ({
       gamesPlayed: prev.gamesPlayed + 1,
       bestScore: Math.max(prev.bestScore, score),
       totalWins: prev.totalWins + (won ? 1 : 0),
       totalEarnings: prev.totalEarnings + earnings
     }));
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 relative overflow-hidden">
@@ -128,7 +133,6 @@ const Index = () => {
         </div>
       )}
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-4 md:py-8 relative z-10">
         {currentView === 'hub' && (
           <div className="space-y-8">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -42,39 +42,85 @@ interface PlayerStats {
   updated_at: string;
 }
 
-// Cache for player stats to reduce API calls
+// Enhanced cache with TTL and size limits
 const playerStatsCache = new Map<string, { data: PlayerStats; timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds
+const matchCache = new Map<string, { data: Match; timestamp: number }>();
+const CACHE_DURATION = 60000; // 1 minute
+const MAX_CACHE_SIZE = 100;
+
+// Cache cleanup function
+const cleanupCache = (cache: Map<string, any>) => {
+  if (cache.size > MAX_CACHE_SIZE) {
+    const entries = Array.from(cache.entries());
+    entries.slice(0, cache.size - MAX_CACHE_SIZE).forEach(([key]) => {
+      cache.delete(key);
+    });
+  }
+};
 
 export const useMatches = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  // Prevent multiple simultaneous fetches
+  const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
+  const mountedRef = useRef(true);
 
-  const fetchMatches = async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const fetchMatches = useCallback(async (force = false) => {
+    // Prevent excessive calls
+    const now = Date.now();
+    if (!force && (fetchingRef.current || now - lastFetchRef.current < 5000)) {
+      return;
+    }
+
+    if (!mountedRef.current) return;
+
+    fetchingRef.current = true;
+    lastFetchRef.current = now;
+
     try {
       const { data, error } = await supabase
         .from('matches')
         .select('*')
         .eq('status', 'waiting')
         .eq('is_private', false)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20); // Limit results
 
       if (error) throw error;
-      setMatches(data || []);
+      
+      if (mountedRef.current) {
+        setMatches(data || []);
+      }
     } catch (error) {
       console.error('Error fetching matches:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load active matches",
-        variant: "destructive"
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Error",
+          description: "Failed to load active matches",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        fetchingRef.current = false;
+      }
     }
-  };
+  }, [toast]);
 
-  const getPlayerStats = async (walletAddress: string): Promise<PlayerStats | null> => {
+  const getPlayerStats = useCallback(async (walletAddress: string): Promise<PlayerStats | null> => {
+    if (!walletAddress) return null;
+
     // Check cache first
     const cached = playerStatsCache.get(walletAddress);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -99,22 +145,18 @@ export const useMatches = () => {
         updated_at: new Date().toISOString()
       };
 
-      if (error) {
-        console.warn('Error fetching player stats, using defaults:', error.message);
-        return defaultStats;
-      }
-      
       const result = data || defaultStats;
       
-      // Cache the result
+      // Cache with cleanup
       playerStatsCache.set(walletAddress, {
         data: result,
         timestamp: Date.now()
       });
+      cleanupCache(playerStatsCache);
 
       return result;
     } catch (error) {
-      console.warn('Error fetching player stats, using defaults:', error);
+      console.warn('Error fetching player stats:', error);
       return {
         id: '',
         wallet_address: walletAddress,
@@ -125,7 +167,39 @@ export const useMatches = () => {
         updated_at: new Date().toISOString()
       };
     }
-  };
+  }, []);
+
+  const getMatch = useCallback(async (matchId: string): Promise<Match | null> => {
+    if (!matchId) return null;
+
+    // Check cache first
+    const cached = matchCache.get(matchId);
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('id', matchId)
+        .single();
+
+      if (error) throw error;
+      
+      // Cache with cleanup
+      matchCache.set(matchId, {
+        data: data as Match,
+        timestamp: Date.now()
+      });
+      cleanupCache(matchCache);
+
+      return data as Match;
+    } catch (error) {
+      console.error('Error fetching match:', error);
+      return null;
+    }
+  }, []);
 
   const getCompletedMatches = async (walletAddress: string): Promise<Match[]> => {
     try {
@@ -134,7 +208,8 @@ export const useMatches = () => {
         .select('*')
         .eq('status', 'completed')
         .or(`creator_wallet.eq.${walletAddress},opponent_wallet.eq.${walletAddress}`)
-        .order('completed_at', { ascending: false });
+        .order('completed_at', { ascending: false })
+        .limit(10); // Limit results
 
       if (error) throw error;
       return data as Match[] || [];
@@ -180,7 +255,9 @@ export const useMatches = () => {
 
       if (error) throw error;
 
-      await fetchMatches();
+      // Clear cache and refetch
+      matchCache.clear();
+      await fetchMatches(true);
       return data;
     } catch (error) {
       console.error('Error creating match:', error);
@@ -217,7 +294,9 @@ export const useMatches = () => {
         description: "Game starting now!",
       });
 
-      await fetchMatches();
+      // Clear cache and refetch
+      matchCache.delete(matchId);
+      await fetchMatches(true);
       return data;
     } catch (error) {
       console.error('Error joining match:', error);
@@ -232,9 +311,6 @@ export const useMatches = () => {
 
   const submitTapResult = async (matchId: string, walletAddress: string, score: number, signature: string) => {
     try {
-      console.log('Submitting tap result for match:', matchId, 'wallet:', walletAddress, 'score:', score);
-
-      // Use upsert with the unique constraint we just added
       const { data: tapResult, error: tapError } = await supabase
         .from('tap_results')
         .upsert({
@@ -251,34 +327,25 @@ export const useMatches = () => {
         .single();
 
       if (tapError) {
-        console.error('Error submitting tap result:', tapError);
         throw new Error(`Failed to submit result: ${tapError.message}`);
       }
 
-      console.log('Tap result submitted successfully:', tapResult);
-
-      // Check if both players have submitted and try to complete match
+      // Check if both players have submitted
       const { data: allResults, error: resultsError } = await supabase
         .from('tap_results')
         .select('wallet_address, score')
         .eq('match_id', matchId);
 
       if (resultsError) {
-        console.error('Error fetching all results:', resultsError);
         return tapResult;
       }
 
-      // If both players submitted, try to complete the match
       if (allResults && allResults.length === 2) {
-        console.log('Both players submitted, attempting to complete match');
-        
-        // Determine winner
         const [result1, result2] = allResults;
         const winner = result1.score > result2.score ? result1.wallet_address : 
                       result2.score > result1.score ? result2.wallet_address : 
-                      null; // Handle ties
+                      null;
 
-        // Try to update match status - only one update will succeed due to status check
         const { data: updatedMatch, error: updateError } = await supabase
           .from('matches')
           .update({
@@ -287,16 +354,13 @@ export const useMatches = () => {
             completed_at: new Date().toISOString()
           })
           .eq('id', matchId)
-          .eq('status', 'in_progress') // This ensures only one update succeeds
+          .eq('status', 'in_progress')
           .select()
           .maybeSingle();
 
-        if (updateError) {
-          console.log('Match update failed (likely already completed):', updateError.message);
-        } else if (updatedMatch) {
-          console.log('Match completed successfully:', updatedMatch);
-          
-          // Clear player stats cache for both players
+        if (!updateError && updatedMatch) {
+          // Clear relevant caches
+          matchCache.delete(matchId);
           result1.wallet_address && playerStatsCache.delete(result1.wallet_address);
           result2.wallet_address && playerStatsCache.delete(result2.wallet_address);
 
@@ -307,8 +371,6 @@ export const useMatches = () => {
             title: winnerText,
             description: `Final scores: ${result1.score} vs ${result2.score}`,
           });
-        } else {
-          console.log('Match was already completed by other player');
         }
       } else {
         toast({
@@ -330,22 +392,6 @@ export const useMatches = () => {
     }
   };
 
-  const getMatch = async (matchId: string): Promise<Match | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('id', matchId)
-        .single();
-
-      if (error) throw error;
-      return data as Match;
-    } catch (error) {
-      console.error('Error fetching match:', error);
-      return null;
-    }
-  };
-
   const getTapResults = async (matchId: string): Promise<TapResult[]> => {
     try {
       const { data, error } = await supabase
@@ -361,10 +407,12 @@ export const useMatches = () => {
     }
   };
 
+  // Initial load and subscription with throttling
   useEffect(() => {
-    fetchMatches();
+    fetchMatches(true);
 
-    // Subscribe to real-time updates with reduced frequency
+    // Throttled subscription
+    let timeoutId: NodeJS.Timeout;
     const channel = supabase
       .channel('matches-changes')
       .on(
@@ -375,18 +423,21 @@ export const useMatches = () => {
           table: 'matches'
         },
         () => {
-          // Debounce the fetch to avoid excessive calls
-          setTimeout(() => {
-            fetchMatches();
-          }, 1000);
+          clearTimeout(timeoutId);
+          timeoutId = setTimeout(() => {
+            if (mountedRef.current) {
+              fetchMatches(true);
+            }
+          }, 3000); // Increased debounce time
         }
       )
       .subscribe();
 
     return () => {
+      clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchMatches]);
 
   return {
     matches,
@@ -399,6 +450,6 @@ export const useMatches = () => {
     getPlayerStats,
     getCompletedMatches,
     getMatchWithResults,
-    refetch: fetchMatches
+    refetch: () => fetchMatches(true)
   };
 };
