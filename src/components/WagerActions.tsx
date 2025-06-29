@@ -9,6 +9,7 @@ import { useWagerSystem } from '@/hooks/useWagerSystem';
 import { useTokenTransfer } from '@/hooks/useTokenTransfer';
 import { useMatchLobby } from '@/hooks/useMatchLobby';
 import { useMatchLobbyWebSocket } from '@/hooks/useMatchLobbyWebSocket';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WagerActionsProps {
   matchId: string;
@@ -19,7 +20,7 @@ interface WagerActionsProps {
 const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { joinMatch, depositWager } = useWagerSystem();
+  const { depositCreatorWager, depositOpponentWager } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
   const { refetch } = useMatchLobby(matchId, walletAddress);
   const { sendMessage } = useMatchLobbyWebSocket(
@@ -43,7 +44,12 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         throw new Error(`Insufficient balance. You need ${match.wager} GOR but only have ${balance} GOR`);
       }
 
-      await joinMatch(matchId);
+      // Update match to add opponent
+      await supabase
+        .from('matches')
+        .update({ opponent_wallet: walletAddress })
+        .eq('id', matchId);
+
       await refetch();
       
       toast({
@@ -72,24 +78,21 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         throw new Error(`Insufficient balance. You need ${match.wager} GOR but only have ${balance} GOR`);
       }
 
-      const result = await depositWager(matchId, match.wager);
-      
-      if (result.success) {
+      const onDepositConfirmed = () => {
         // Send WebSocket message to notify lobby about deposit
         sendMessage('deposit_made', { 
           lobbyId: matchId, 
           wallet: walletAddress 
         });
-        
-        await refetch();
-        
-        toast({
-          title: "💰 Deposit Successful!",
-          description: `${match.wager} GOR deposited. Waiting for opponent...`,
-        });
-      } else {
-        throw new Error(result.error || 'Deposit failed');
+      };
+
+      if (isCreator) {
+        await depositCreatorWager(matchId, match.wager, onDepositConfirmed);
+      } else if (isOpponent) {
+        await depositOpponentWager(matchId, match.wager, onDepositConfirmed);
       }
+      
+      await refetch();
     } catch (error) {
       console.error('Error depositing wager:', error);
       toast({
