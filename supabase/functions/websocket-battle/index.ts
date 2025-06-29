@@ -9,6 +9,8 @@ interface BattleState {
   countdownStart?: number;
   gameStart?: number;
   playerTaps: Map<string, number>;
+  countdownTimer?: number;
+  gameTimer?: number;
 }
 
 const battles = new Map<string, BattleState>();
@@ -37,7 +39,6 @@ serve(async (req) => {
   const url = new URL(req.url);
   const matchId = url.searchParams.get("matchId");
   const walletAddress = url.searchParams.get("wallet");
-  const authHeader = url.searchParams.get("authorization") || headers.get("authorization");
 
   if (!matchId || !walletAddress) {
     return new Response("Missing matchId or wallet", { 
@@ -45,11 +46,6 @@ serve(async (req) => {
       headers: corsHeaders 
     });
   }
-
-  // Initialize Supabase client for potential database operations
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
 
   console.log(`WebSocket upgrade request for match ${matchId}, wallet ${walletAddress}`);
 
@@ -81,8 +77,9 @@ serve(async (req) => {
         gameState: battle.gameState
       });
 
-      // Start countdown if we have 2 players and not already started
+      // Start countdown immediately when we have 2 players
       if (battle.players.size === 2 && battle.gameState === 'waiting') {
+        console.log(`Starting countdown for match ${matchId} - both players connected`);
         startCountdown(matchId);
       }
     } catch (error) {
@@ -100,10 +97,6 @@ serve(async (req) => {
       handleMessage(matchId, walletAddress, message);
     } catch (error) {
       console.error('Error parsing message:', error);
-      socket.send(JSON.stringify({
-        type: 'error',
-        message: 'Invalid message format'
-      }));
     }
   };
 
@@ -113,6 +106,14 @@ serve(async (req) => {
     if (battle) {
       battle.players.delete(walletAddress);
       battle.playerTaps.delete(walletAddress);
+      
+      // Clean up timers if needed
+      if (battle.countdownTimer) {
+        clearTimeout(battle.countdownTimer);
+      }
+      if (battle.gameTimer) {
+        clearTimeout(battle.gameTimer);
+      }
       
       if (battle.players.size === 0) {
         console.log(`Cleaning up empty battle: ${matchId}`);
@@ -125,10 +126,6 @@ serve(async (req) => {
         });
       }
     }
-  };
-
-  socket.onerror = (error) => {
-    console.error(`WebSocket error for ${walletAddress}:`, error);
   };
 
   return response;
@@ -160,11 +157,6 @@ function handleMessage(matchId: string, walletAddress: string, message: any) {
         });
       }
       break;
-      
-    case 'game_complete':
-      const finalScore = battle.playerTaps.get(walletAddress) || 0;
-      console.log(`Player ${walletAddress} completed with score: ${finalScore}`);
-      break;
   }
 }
 
@@ -175,17 +167,19 @@ function startCountdown(matchId: string) {
     return;
   }
 
-  console.log(`Starting countdown for battle ${matchId}`);
+  console.log(`Starting synchronized countdown for battle ${matchId}`);
   battle.gameState = 'countdown';
   battle.countdownStart = Date.now();
   
+  // Broadcast countdown start to all players simultaneously
   broadcastToMatch(matchId, {
     type: 'countdown_start',
     startTime: battle.countdownStart,
     duration: 3000
   });
 
-  setTimeout(() => {
+  // Set timer for game start
+  battle.countdownTimer = setTimeout(() => {
     startGame(matchId);
   }, 3000);
 }
@@ -197,21 +191,24 @@ function startGame(matchId: string) {
     return;
   }
 
-  console.log(`Starting game for battle ${matchId}`);
+  console.log(`Starting synchronized game for battle ${matchId}`);
   battle.gameState = 'active';
   battle.gameStart = Date.now();
   
+  // Reset all player taps
   for (const wallet of battle.players.keys()) {
     battle.playerTaps.set(wallet, 0);
   }
 
+  // Broadcast game start to all players simultaneously
   broadcastToMatch(matchId, {
     type: 'game_start',
     startTime: battle.gameStart,
     duration: 30000
   });
 
-  setTimeout(() => {
+  // Set timer for game end
+  battle.gameTimer = setTimeout(() => {
     endGame(matchId);
   }, 30000);
 }
@@ -223,7 +220,7 @@ function endGame(matchId: string) {
     return;
   }
 
-  console.log(`Ending game for battle ${matchId}`);
+  console.log(`Ending synchronized game for battle ${matchId}`);
   battle.gameState = 'finished';
   
   const scores = Array.from(battle.playerTaps.entries()).map(([wallet, taps]) => ({
@@ -237,6 +234,7 @@ function endGame(matchId: string) {
     prev.score > current.score ? prev : current
   );
 
+  // Broadcast game end to all players simultaneously
   broadcastToMatch(matchId, {
     type: 'game_end',
     scores,
@@ -244,6 +242,7 @@ function endGame(matchId: string) {
     timestamp: Date.now()
   });
 
+  // Clean up after 30 seconds
   setTimeout(() => {
     battles.delete(matchId);
     console.log(`Battle ${matchId} cleaned up`);
@@ -258,7 +257,7 @@ function broadcastToMatch(matchId: string, message: any) {
   }
 
   const messageStr = JSON.stringify(message);
-  console.log(`Broadcasting to match ${matchId}:`, message.type);
+  console.log(`Broadcasting to match ${matchId}:`, message.type, `(${battle.players.size} players)`);
   
   const playersCopy = new Map(battle.players);
   

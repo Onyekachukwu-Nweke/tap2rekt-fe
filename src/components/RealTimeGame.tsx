@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Trophy, ArrowLeft, RotateCcw, Timer, Users, Zap } from 'lucide-react';
+import { Target, Trophy, ArrowLeft, RotateCcw } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useWebSocketBattle } from '@/hooks/useWebSocketBattle';
 import { useGameSubmission } from '@/hooks/useGameSubmission';
@@ -24,15 +24,14 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [showPostGame, setShowPostGame] = useState(false);
-  const [gameState, setGameState] = useState<'waiting' | 'countdown' | 'active' | 'finished'>('waiting');
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [countdown, setCountdown] = useState(0);
   
   const { getMatch, getPlayerStats, getMatchWithResults } = useMatches();
   const { isConnected, battleState, sendTap, disconnect } = useWebSocketBattle(matchId, walletAddress);
   const { submissionStatus, hasSubmittedScore, submitScore, retrySubmission } = useGameSubmission(matchId, walletAddress);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  console.log('RealTimeGame - Current battle state:', battleState);
 
   // Load player stats
   useEffect(() => {
@@ -86,6 +85,7 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   useEffect(() => {
     if (battleState.gameState === 'finished' && battleState.winner && !hasSubmittedScore) {
       const myScore = battleState.playerTaps[walletAddress] || 0;
+      console.log('Game finished, submitting score:', myScore);
       submitScore(myScore);
       setShowPostGame(true);
       
@@ -108,26 +108,10 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
 
   const handleRetryConnection = () => {
     disconnect();
-    // The useEffect in useWebSocketBattle will automatically reconnect
     toast({
       title: "🔄 Reconnecting...",
       description: "Attempting to reconnect to the battle",
     });
-  };
-
-  const handleWebSocketMessage = (data: any) => {
-    console.log('WebSocket message received:', data);
-    
-    if (data.type === 'game_state_update') {
-      // Map waiting to lobby to match our type
-      const mappedState = data.state === 'waiting' ? 'waiting' : data.state;
-      setGameState(mappedState);
-      setTimeLeft(data.timeLeft || 0);
-      
-      if (data.state === 'countdown') {
-        setCountdown(data.timeLeft || 3);
-      }
-    }
   };
 
   if (!match) {
@@ -142,9 +126,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const opponentWallet = isCreator ? match.opponent_wallet : match.creator_wallet;
   const myTaps = battleState.playerTaps[walletAddress] || 0;
   const opponentTaps = battleState.playerTaps[opponentWallet] || 0;
-
-  // Map waiting state to lobby for WebSocketGameState component
-  const mappedBattleState = battleState.gameState === 'waiting' ? 'waiting' : battleState.gameState;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -193,18 +174,18 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </CardContent>
       </Card>
 
-      {/* Game Timers */}
+      {/* Game Timers - Using WebSocket state directly */}
       <GameTimers 
         gameState={battleState.gameState}
         countdownTime={battleState.countdownTime}
-        timeLeft={timeLeft}
+        timeLeft={battleState.gameTime}
       />
 
-      {/* Game Area */}
+      {/* Game Area - Using WebSocket state directly */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <WebSocketGameState
-            gameState={mappedBattleState}
+            gameState={battleState.gameState}
             countdownTime={battleState.countdownTime}
             gameTime={battleState.gameTime}
             myTaps={myTaps}
