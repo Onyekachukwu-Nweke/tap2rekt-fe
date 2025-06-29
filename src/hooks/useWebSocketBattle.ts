@@ -25,20 +25,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   
   const socketRef = useRef<Socket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const gameIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
-
-  const clearIntervals = useCallback(() => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    if (gameIntervalRef.current) {
-      clearInterval(gameIntervalRef.current);
-      gameIntervalRef.current = null;
-    }
-  }, []);
 
   const connect = useCallback(() => {
     if (socketRef.current?.connected) return;
@@ -68,7 +55,6 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
     socket.on('disconnect', () => {
       console.log('Battle WebSocket disconnected');
       setIsConnected(false);
-      clearIntervals();
       
       // Auto-reconnect after 3 seconds if not manually disconnected
       if (!reconnectTimeoutRef.current) {
@@ -89,80 +75,21 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
             ...prev,
             playerCount: data.playerCount
           }));
-          
-          // Auto-start countdown when we have 2 players
-          if (data.playerCount === 2) {
-            console.log('2 players connected, starting countdown...');
-            setTimeout(() => {
-              setBattleState(prev => ({
-                ...prev,
-                gameState: 'countdown',
-                countdownTime: 3
-              }));
-              
-              // Start countdown timer
-              clearIntervals();
-              countdownIntervalRef.current = setInterval(() => {
-                setBattleState(prev => {
-                  const newTime = prev.countdownTime - 1;
-                  console.log('Countdown:', newTime);
-                  
-                  if (newTime <= 0) {
-                    clearInterval(countdownIntervalRef.current!);
-                    countdownIntervalRef.current = null;
-                    
-                    // Start the game
-                    setBattleState(gameState => ({
-                      ...gameState,
-                      gameState: 'active',
-                      gameTime: 30
-                    }));
-                    
-                    // Start game timer
-                    gameIntervalRef.current = setInterval(() => {
-                      setBattleState(gameState => {
-                        const newGameTime = gameState.gameTime - 1;
-                        console.log('Game time:', newGameTime);
-                        
-                        if (newGameTime <= 0) {
-                          clearInterval(gameIntervalRef.current!);
-                          gameIntervalRef.current = null;
-                          
-                          // End the game
-                          return {
-                            ...gameState,
-                            gameState: 'finished',
-                            gameTime: 0
-                          };
-                        }
-                        return { ...gameState, gameTime: newGameTime };
-                      });
-                    }, 1000);
-                    
-                    return { ...prev, countdownTime: 0 };
-                  }
-                  return { ...prev, countdownTime: newTime };
-                });
-              }, 1000);
-            }, 1000); // Small delay to ensure UI updates
-          }
           break;
           
         case 'countdown_start':
-          clearIntervals();
           setBattleState(prev => ({
             ...prev,
             gameState: 'countdown',
-            countdownTime: data.countdownTime || 3
+            countdownTime: 3
           }));
           
           // Handle countdown timer
-          countdownIntervalRef.current = setInterval(() => {
+          const countdownInterval = setInterval(() => {
             setBattleState(prev => {
               const newTime = prev.countdownTime - 1;
               if (newTime <= 0) {
-                clearInterval(countdownIntervalRef.current!);
-                countdownIntervalRef.current = null;
+                clearInterval(countdownInterval);
                 return { ...prev, countdownTime: 0 };
               }
               return { ...prev, countdownTime: newTime };
@@ -171,21 +98,19 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
           break;
           
         case 'game_start':
-          clearIntervals();
           setBattleState(prev => ({
             ...prev,
             gameState: 'active',
-            gameTime: data.gameTime || 30
+            gameTime: 30
           }));
           
           // Handle game timer
-          gameIntervalRef.current = setInterval(() => {
+          const gameInterval = setInterval(() => {
             setBattleState(prev => {
               const newTime = prev.gameTime - 1;
               if (newTime <= 0) {
-                clearInterval(gameIntervalRef.current!);
-                gameIntervalRef.current = null;
-                return { ...prev, gameTime: 0, gameState: 'finished' };
+                clearInterval(gameInterval);
+                return { ...prev, gameTime: 0 };
               }
               return { ...prev, gameTime: newTime };
             });
@@ -200,7 +125,6 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
           break;
           
         case 'game_end':
-          clearIntervals();
           setBattleState(prev => ({
             ...prev,
             gameState: 'finished',
@@ -220,13 +144,12 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       });
     });
 
-  }, [matchId, walletAddress, toast, clearIntervals]);
+  }, [matchId, walletAddress, toast]);
 
   useEffect(() => {
     connect();
 
     return () => {
-      clearIntervals();
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -234,7 +157,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
         socketRef.current.disconnect();
       }
     };
-  }, [connect, clearIntervals]);
+  }, [connect]);
 
   const sendTap = useCallback(() => {
     if (socketRef.current && isConnected && battleState.gameState === 'active') {
@@ -254,7 +177,6 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
 
   const disconnect = useCallback(() => {
     console.log('Manually disconnecting battle WebSocket');
-    clearIntervals();
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -264,7 +186,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       socketRef.current = null;
     }
     setIsConnected(false);
-  }, [clearIntervals]);
+  }, []);
 
   return {
     isConnected,
