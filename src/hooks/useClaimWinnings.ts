@@ -122,7 +122,19 @@ export const useClaimWinnings = () => {
       const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: false });
 
       // Optionally poll for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
+      const confirmation = await connection.getSignatureStatus(signature, { searchTransactionHistory: true });
+      console.log('Winnings claim confirmed:', confirmation);
+
+      const result = confirmation.value;
+      if (result?.confirmationStatus !== 'confirmed' && result?.confirmationStatus !== 'finalized') {
+        console.log("Winnings claim not confirmed");
+        throw new Error(`Winnings claim not confirmed: ${JSON.stringify(result)}`);
+      }
+
+      if (confirmation.value?.err) {
+        console.log("Winnings claim failed");
+        throw new Error(`Winnings claim failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
       
       // Note: In a real implementation, this would require the vault authority to sign
       // For now, we simulate the transfer process
