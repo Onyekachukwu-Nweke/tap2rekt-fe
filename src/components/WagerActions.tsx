@@ -64,7 +64,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     if (balance < match.wager) {
       toast({
         title: "⚠️ Insufficient Balance",
-        description: `You need ${match.wager} GORB to join this battle`,
+        description: `You need ${match.wager} GOR to join this battle`,
         variant: "destructive"
       });
       return;
@@ -107,7 +107,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     if (balance < match.wager) {
       toast({
         title: "⚠️ Insufficient Balance",
-        description: `You need ${match.wager} GORB to deposit`,
+        description: `You need ${match.wager} GOR to deposit`,
         variant: "destructive"
       });
       return;
@@ -133,7 +133,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
     if (balance < match.wager) {
       toast({
         title: "⚠️ Insufficient Balance",
-        description: `You need ${match.wager} GORB to deposit`,
+        description: `You need ${match.wager} GOR to deposit`,
         variant: "destructive"
       });
       return;
@@ -189,7 +189,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
             )}
           </div>
           <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-            {balance.toFixed(4)} GORB
+            {balance.toFixed(4)} GOR
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -247,7 +247,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-3">
                 <div className="flex items-center text-blue-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  Joining requires immediate {match.wager} GORB deposit
+                  Joining requires immediate {match.wager} GOR deposit
                 </div>
               </div>
               <Button
@@ -263,7 +263,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                 ) : (
                   <>
                     <Users className="w-4 h-4 mr-2" />
-                    Join & Deposit ({match.wager} GORB)
+                    Join & Deposit ({match.wager} GOR)
                   </>
                 )}
               </Button>
@@ -276,7 +276,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               <div className="bg-purple-900/20 border border-purple-600/30 rounded-lg p-3">
                 <div className="flex items-center text-purple-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  You must deposit your {match.wager} GORB wager first
+                  You must deposit your {match.wager} GOR wager first
                 </div>
               </div>
               <Button
@@ -292,7 +292,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                 ) : (
                   <>
                     <Coins className="w-4 h-4 mr-2" />
-                    Deposit Wager ({match.wager} GORB)
+                    Deposit Wager ({match.wager} GOR)
                   </>
                 )}
               </Button>
@@ -305,7 +305,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-lg p-3">
                 <div className="flex items-center text-emerald-300 text-sm">
                   <Shield className="w-4 h-4 mr-2" />
-                  Deposit your {match.wager} GORB wager to start the battle
+                  Deposit your {match.wager} GOR wager to start the battle
                 </div>
               </div>
               <Button
@@ -321,7 +321,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                 ) : (
                   <>
                     <Play className="w-4 h-4 mr-2" />
-                    Deposit & Start Battle ({match.wager} GORB)
+                    Deposit & Start Battle ({match.wager} GOR)
                   </>
                 )}
               </Button>
@@ -389,7 +389,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
                 ) : (
                   <>
                     <Trophy className="w-4 h-4 mr-2" />
-                    Claim Winnings ({match.wager * 2} GORB)
+                    Claim Winnings ({match.wager * 2} GOR)
                   </>
                 )}
               </Button>
@@ -412,7 +412,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
           ))) && balance < match.wager && (
             <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-3 text-center">
               <div className="text-amber-300 text-sm">
-                ⚠️ Insufficient GORB balance ({balance.toFixed(4)} / {match.wager} needed)
+                ⚠️ Insufficient GOR balance ({balance.toFixed(4)} / {match.wager} needed)
               </div>
             </div>
           )}

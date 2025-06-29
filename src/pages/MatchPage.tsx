@@ -274,7 +274,7 @@ const MatchPage = () => {
                     <Coins className="w-4 h-4 md:w-5 md:h-5 text-amber-400" />
                   </div>
                   <div className="text-base md:text-lg font-bold text-white">{match.wager}</div>
-                  <div className="text-xs text-slate-400">GORB Each</div>
+                  <div className="text-xs text-slate-400">GOR Each</div>
                 </div>
                 
                 <div className="bg-slate-700/40 border border-slate-600/30 rounded-lg p-3">

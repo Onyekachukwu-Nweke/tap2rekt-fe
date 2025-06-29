@@ -88,7 +88,7 @@ const WebSocketBattleGame = ({ matchId, walletAddress, match, onBack }: WebSocke
               WebSocket Battle - LIVE
             </div>
             <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-lg px-4 py-2">
-              {match.wager * 2} GORB Prize
+              {match.wager * 2} GOR Prize
             </Badge>
           </CardTitle>
         </CardHeader>

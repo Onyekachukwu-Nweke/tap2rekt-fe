@@ -44,7 +44,7 @@ const CreateBattleForm = ({ onSubmit, loading = false }: CreateBattleFormProps) 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="wager" className="text-slate-200">
-              Wager Amount (GORB)
+              Wager Amount (GOR)
             </Label>
             <Input
               id="wager"

@@ -99,7 +99,7 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
                         <div className="w-1 h-1 bg-slate-500 rounded-full"></div>
                         <div className="flex items-center">
                           <Coins className="w-3 h-3 mr-1 text-amber-400" />
-                          {match.wager} GORB
+                          {match.wager} GOR
                         </div>
                       </div>
                     </div>
@@ -107,7 +107,7 @@ const ActiveMatches = ({ walletAddress, onJoinMatch }: ActiveMatchesProps) => {
                   
                   <div className="flex items-center space-x-3">
                     <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-xs px-2 py-1">
-                      Win {match.wager * 2} GORB
+                      Win {match.wager * 2} GOR
                     </Badge>
                     <Button 
                       size="sm"

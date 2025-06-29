@@ -150,7 +150,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
             <div className="flex items-center justify-between">
               <span className="text-slate-300">Your Balance:</span>
               <Badge className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-                {balanceLoading ? 'Loading...' : `${balance.toFixed(4)} GORB`}
+                {balanceLoading ? 'Loading...' : `${balance.toFixed(4)} GOR`}
               </Badge>
             </div>
           </div>
@@ -170,7 +170,7 @@ const CreateBattleModal = ({ isOpen, onClose, onBattleCreated }: CreateBattleMod
           {/* Wager Amount */}
           <div className="space-y-2">
             <Label htmlFor="wager" className="text-slate-200">
-              Wager Amount (GORB)
+              Wager Amount (GOR)
             </Label>
             <div className="relative">
               <Coins className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-amber-400" />
