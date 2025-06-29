@@ -129,13 +129,11 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
                           gameIntervalRef.current = null;
                           
                           // End the game
-                          setBattleState(finalState => ({
-                            ...finalState,
+                          return {
+                            ...gameState,
                             gameState: 'finished',
                             gameTime: 0
-                          }));
-                          
-                          return { ...finalState, gameTime: 0 };
+                          };
                         }
                         return { ...gameState, gameTime: newGameTime };
                       });
