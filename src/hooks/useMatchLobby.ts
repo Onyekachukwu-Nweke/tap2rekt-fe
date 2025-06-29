@@ -26,18 +26,27 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
   const { checkWagerStatus } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
   
-  // Refs to prevent multiple simultaneous calls
+  // Prevent multiple simultaneous calls and infinite loops
   const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
   const lastUpdateRef = useRef(0);
   const balanceCache = useRef<{ value: number; timestamp: number } | null>(null);
   
-  // Debounced update function
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  
+  // Stable update function with proper debouncing
   const updateState = useCallback(async (force = false) => {
-    if (loadingRef.current && !force) return;
+    if (!mountedRef.current || (loadingRef.current && !force)) return;
     
     const now = Date.now();
-    // Prevent updates more frequently than every 2 seconds unless forced
-    if (now - lastUpdateRef.current < 2000 && !force) return;
+    // Prevent updates more frequently than every 3 seconds unless forced
+    if (!force && now - lastUpdateRef.current < 3000) return;
     
     loadingRef.current = true;
     lastUpdateRef.current = now;
@@ -45,52 +54,74 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
     try {
       // Get match data
       const matchData = await getMatch(matchId);
+      if (!mountedRef.current) return;
+      
       if (!matchData) {
         setState(prev => ({ ...prev, error: 'Match not found', loading: false }));
         return;
       }
 
-      // Check if we need to update balance (cache for 30 seconds during waiting)
+      // Get balance with caching for waiting matches
       let balance = 0;
       if (matchData.status === 'waiting') {
         if (balanceCache.current && now - balanceCache.current.timestamp < 30000) {
           balance = balanceCache.current.value;
         } else {
           balance = await getTokenBalance();
-          balanceCache.current = { value: balance, timestamp: now };
+          if (mountedRef.current) {
+            balanceCache.current = { value: balance, timestamp: now };
+          }
         }
       } else {
         balance = await getTokenBalance();
       }
 
+      if (!mountedRef.current) return;
+
       // Get wager status
       const wagerStatus = await checkWagerStatus(matchId);
 
-      setState({
-        match: matchData,
-        balance,
-        wagerStatus,
-        loading: false,
-        error: null
-      });
+      if (mountedRef.current) {
+        setState({
+          match: matchData,
+          balance,
+          wagerStatus,
+          loading: false,
+          error: null
+        });
+      }
     } catch (error) {
       console.error('Error updating match lobby state:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error.message : 'Update failed',
-        loading: false 
-      }));
+      if (mountedRef.current) {
+        setState(prev => ({ 
+          ...prev, 
+          error: error instanceof Error ? error.message : 'Update failed',
+          loading: false 
+        }));
+      }
     } finally {
       loadingRef.current = false;
     }
   }, [matchId, getMatch, checkWagerStatus, getTokenBalance]);
 
-  // Initial load
+  // Initial load only once
   useEffect(() => {
-    updateState(true);
-  }, [updateState]);
+    let mounted = true;
+    
+    const initialLoad = async () => {
+      if (mounted) {
+        await updateState(true);
+      }
+    };
+    
+    initialLoad();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [matchId]); // Only depend on matchId, not updateState
 
-  // Real-time subscription with debouncing
+  // Real-time subscription with better debouncing
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
@@ -105,11 +136,13 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
           filter: `id=eq.${matchId}`
         },
         () => {
-          // Debounce updates by 2 seconds
+          // Debounce updates by 3 seconds to prevent excessive calls
           clearTimeout(timeoutId);
           timeoutId = setTimeout(() => {
-            updateState(true);
-          }, 2000);
+            if (mountedRef.current) {
+              updateState(true);
+            }
+          }, 3000);
         }
       )
       .subscribe();
@@ -118,7 +151,7 @@ export const useMatchLobby = (matchId: string, walletAddress: string) => {
       clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [matchId, updateState]);
+  }, [matchId]); // Only depend on matchId
 
   const refetch = useCallback(() => {
     // Clear cache and force update

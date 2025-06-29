@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useTokenTransfer, VAULT_WALLET } from './useTokenTransfer';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -29,17 +28,28 @@ export const useWagerSystem = () => {
         throw new Error(`Insufficient GOR balance. Need ${wagerAmount}, have ${balance.toFixed(4)}`);
       }
 
+      console.log('Starting creator deposit process...');
+
       // Transfer creator's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
+      console.log('Creator deposit transaction completed:', signature);
+
       // Update match to mark creator deposit as confirmed
-      await supabase
+      const { error } = await supabase
         .from('matches')
         .update({ 
           creator_deposit_confirmed: true,
           creator_deposit_signature: signature 
         })
         .eq('id', matchId);
+
+      if (error) {
+        console.error('Failed to update creator deposit status:', error);
+        throw new Error(`Failed to update deposit status: ${error.message}`);
+      }
+
+      console.log('Creator deposit status updated in database');
 
       // Only notify WebSocket AFTER database is updated
       if (onDepositConfirmed) {
@@ -54,6 +64,12 @@ export const useWagerSystem = () => {
       return signature;
     } catch (error) {
       console.error('Creator wager deposit failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to deposit wager';
+      toast({
+        title: "❌ Deposit Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setProcessingWager(false);
@@ -68,6 +84,8 @@ export const useWagerSystem = () => {
     setProcessingWager(true);
     
     try {
+      console.log('Starting opponent deposit process...');
+
       // Check if user has sufficient balance
       const balance = await getTokenBalance();
       if (balance < wagerAmount) {
@@ -80,9 +98,13 @@ export const useWagerSystem = () => {
         throw new Error('Creator must deposit first before opponent can deposit');
       }
 
+      console.log('Creator deposit confirmed, proceeding with opponent deposit...');
+
       // Transfer opponent's wager to vault
       const signature = await transferTokens(VAULT_WALLET, wagerAmount, 'wager');
       
+      console.log('Opponent deposit transaction completed:', signature);
+
       // Update match to mark opponent deposit as confirmed and start the match
       const { data: updatedMatch, error } = await supabase
         .from('matches')
@@ -97,8 +119,11 @@ export const useWagerSystem = () => {
         .single();
 
       if (error) {
+        console.error('Failed to update opponent deposit status:', error);
         throw new Error(`Failed to update match status: ${error.message}`);
       }
+
+      console.log('Opponent deposit status updated, match status changed to in_progress');
 
       // Only notify WebSocket AFTER database is updated AND match status is changed
       if (onDepositConfirmed) {
@@ -113,6 +138,12 @@ export const useWagerSystem = () => {
       return signature;
     } catch (error) {
       console.error('Opponent wager deposit failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to deposit wager';
+      toast({
+        title: "❌ Deposit Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setProcessingWager(false);
