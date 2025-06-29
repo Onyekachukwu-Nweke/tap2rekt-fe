@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,7 +21,7 @@ interface WagerActionsProps {
 const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { depositCreatorWager, depositOpponentWager } = useWagerSystem();
+  const { depositCreatorWager, depositOpponentWager, processingWager } = useWagerSystem();
   const { getTokenBalance } = useTokenTransfer();
   const { refetch } = useMatchLobby(matchId, walletAddress);
   const { sendMessage } = useMatchLobbyWebSocket(
@@ -44,12 +45,20 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         throw new Error(`Insufficient balance. You need ${match.wager} GOR but only have ${balance} GOR`);
       }
 
+      console.log('Joining match as opponent...');
+
       // Update match to add opponent
-      await supabase
+      const { error } = await supabase
         .from('matches')
         .update({ opponent_wallet: walletAddress })
         .eq('id', matchId);
 
+      if (error) {
+        console.error('Failed to join match:', error);
+        throw new Error(`Failed to join match: ${error.message}`);
+      }
+
+      console.log('Successfully joined match');
       await refetch();
       
       toast({
@@ -69,9 +78,8 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
   };
 
   const handleDepositWager = async () => {
-    if (!walletAddress || isProcessing) return;
+    if (!walletAddress || processingWager) return;
 
-    setIsProcessing(true);
     try {
       const balance = await getTokenBalance();
       if (balance < match.wager) {
@@ -79,11 +87,16 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       }
 
       const onDepositConfirmed = () => {
-        // Send WebSocket message to notify lobby about deposit
+        console.log('Deposit confirmed, sending WebSocket notification...');
         sendMessage('deposit_made', { 
           lobbyId: matchId, 
-          wallet: walletAddress 
+          wallet: walletAddress,
+          role: isCreator ? 'creator' : 'opponent'
         });
+        // Refetch after a delay to allow DB update to propagate
+        setTimeout(() => {
+          refetch();
+        }, 2000);
       };
 
       if (isCreator) {
@@ -92,7 +105,6 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         await depositOpponentWager(matchId, match.wager, onDepositConfirmed);
       }
       
-      await refetch();
     } catch (error) {
       console.error('Error depositing wager:', error);
       toast({
@@ -100,8 +112,6 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
         description: error instanceof Error ? error.message : "Failed to deposit wager",
         variant: "destructive"
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -111,7 +121,7 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
       <ClaimWinnings 
         matchId={matchId}
         onClaimSuccess={() => {
-          // Optionally refresh match data or show success message
+          refetch();
           toast({
             title: "🎉 Success!",
             description: "Winnings claimed successfully",
@@ -214,10 +224,10 @@ const WagerActions = ({ matchId, match, walletAddress }: WagerActionsProps) => {
               (isOpponent && !match.opponent_deposit_confirmed)) && (
               <Button 
                 onClick={handleDepositWager}
-                disabled={isProcessing}
+                disabled={processingWager}
                 className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-lg py-6"
               >
-                {isProcessing ? (
+                {processingWager ? (
                   <>
                     <Clock className="w-5 h-5 mr-2 animate-spin" />
                     Processing Deposit...
