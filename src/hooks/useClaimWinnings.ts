@@ -1,5 +1,15 @@
 
 import { useState, useCallback } from 'react';
+import bs58 from 'bs58';
+import { 
+  Keypair, 
+  PublicKey, 
+  Connection, 
+  SystemProgram, 
+  Transaction, 
+  sendAndConfirmTransaction, 
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
 import { useTokenTransfer, VAULT_WALLET } from './useTokenTransfer';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useToast } from '@/hooks/use-toast';
@@ -81,6 +91,39 @@ export const useClaimWinnings = () => {
       }
 
       // 9. Transfer winnings from vault to winner
+      const vaultPrivateKeyBase58 = import.meta.env.VITE_VAULT_PRIVATE_KEY;
+      if (!vaultPrivateKeyBase58) {
+        throw new Error('Vault private key not set in env');
+      }
+
+      const vaultKeypair = Keypair.fromSecretKey(bs58.decode(vaultPrivateKeyBase58));
+
+      const connection = new Connection(import.meta.env.VITE_RPC_ENDPOINT, 'confirmed');
+      const winnerPublicKey = new PublicKey(match.winner_wallet);
+
+      const lamports = Math.floor(totalWinnings * LAMPORTS_PER_SOL);
+
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: vaultKeypair.publicKey,
+          toPubkey: winnerPublicKey,
+          lamports
+        })
+      );
+
+      transaction.feePayer = vaultKeypair.publicKey;
+      transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+      // Sign transaction with vault keypair
+      transaction.sign(vaultKeypair);
+
+      // Send raw transaction
+      const rawTx = transaction.serialize();
+      const signature = await connection.sendRawTransaction(rawTx, { skipPreflight: false });
+
+      // Optionally poll for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      
       // Note: In a real implementation, this would require the vault authority to sign
       // For now, we simulate the transfer process
       toast({
