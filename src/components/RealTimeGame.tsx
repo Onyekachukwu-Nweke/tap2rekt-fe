@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Trophy, ArrowLeft, RotateCcw, Timer, Users, Zap } from 'lucide-react';
+import { Target, Trophy, ArrowLeft, RotateCcw } from 'lucide-react';
 import { useMatches } from '@/hooks/useMatches';
 import { useWebSocketBattle } from '@/hooks/useWebSocketBattle';
 import { useGameSubmission } from '@/hooks/useGameSubmission';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerStats } from './game/PlayerStats';
-import { GameTimers } from './game/GameTimers';
 import { WebSocketConnection } from './game/WebSocketConnection';
 import { WebSocketGameState } from './game/WebSocketGameState';
 import { GameSubmissionHandler } from './game/GameSubmissionHandler';
@@ -24,9 +24,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const [match, setMatch] = useState<any>(null);
   const [playerStats, setPlayerStats] = useState<any>(null);
   const [showPostGame, setShowPostGame] = useState(false);
-  const [gameState, setGameState] = useState<'waiting' | 'countdown' | 'active' | 'finished'>('waiting');
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [countdown, setCountdown] = useState(0);
   
   const { getMatch, getPlayerStats, getMatchWithResults } = useMatches();
   const { isConnected, battleState, sendTap, disconnect } = useWebSocketBattle(matchId, walletAddress);
@@ -115,21 +112,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
     });
   };
 
-  const handleWebSocketMessage = (data: any) => {
-    console.log('WebSocket message received:', data);
-    
-    if (data.type === 'game_state_update') {
-      // Map waiting to lobby to match our type
-      const mappedState = data.state === 'waiting' ? 'waiting' : data.state;
-      setGameState(mappedState);
-      setTimeLeft(data.timeLeft || 0);
-      
-      if (data.state === 'countdown') {
-        setCountdown(data.timeLeft || 3);
-      }
-    }
-  };
-
   if (!match) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 flex items-center justify-center">
@@ -142,9 +124,6 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
   const opponentWallet = isCreator ? match.opponent_wallet : match.creator_wallet;
   const myTaps = battleState.playerTaps[walletAddress] || 0;
   const opponentTaps = battleState.playerTaps[opponentWallet] || 0;
-
-  // Map waiting state to lobby for WebSocketGameState component
-  const mappedBattleState = battleState.gameState === 'waiting' ? 'waiting' : battleState.gameState;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -193,18 +172,11 @@ const RealTimeGame = ({ matchId, walletAddress, onGameComplete }: RealTimeGamePr
         </CardContent>
       </Card>
 
-      {/* Game Timers */}
-      <GameTimers 
-        gameState={battleState.gameState}
-        countdownTime={battleState.countdownTime}
-        timeLeft={timeLeft}
-      />
-
       {/* Game Area */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-0">
           <WebSocketGameState
-            gameState={mappedBattleState}
+            gameState={battleState.gameState}
             countdownTime={battleState.countdownTime}
             gameTime={battleState.gameTime}
             myTaps={myTaps}
