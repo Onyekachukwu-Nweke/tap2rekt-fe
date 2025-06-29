@@ -81,15 +81,6 @@ serve(async (req) => {
         deposits: Object.fromEntries(lobby.deposits)
       });
 
-      // Check for match updates every 30 seconds (much less frequent than before)
-      const checkInterval = setInterval(async () => {
-        if (lobby.players.has(walletAddress)) {
-          await checkMatchStatus(matchId);
-        } else {
-          clearInterval(checkInterval);
-        }
-      }, 30000);
-
     } catch (error) {
       console.error('Error handling lobby connection:', error);
       socket.send(JSON.stringify({
@@ -133,9 +124,15 @@ async function handleLobbyMessage(matchId: string, walletAddress: string, messag
   const lobby = lobbies.get(matchId);
   if (!lobby) return;
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
   switch (message.type) {
     case 'deposit_made':
-      // Mark deposit as confirmed
+      console.log(`Deposit confirmed for ${message.role} in match ${matchId}`);
+      
+      // Mark deposit as confirmed in lobby state
       lobby.deposits.set(walletAddress, true);
       
       broadcastToLobby(matchId, {
@@ -144,43 +141,34 @@ async function handleLobbyMessage(matchId: string, walletAddress: string, messag
         role: message.role
       });
 
-      // Check if both deposits are in
-      const depositCount = Array.from(lobby.deposits.values()).filter(Boolean).length;
-      if (depositCount >= 2) {
+      // Check if both deposits are confirmed
+      const { data: match } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('id', matchId)
+        .single();
+
+      if (match && match.creator_deposit_confirmed && match.opponent_deposit_confirmed) {
+        console.log(`Both deposits confirmed for match ${matchId} - updating status to in_progress`);
+        
+        // Update match status to in_progress
+        await supabase
+          .from('matches')
+          .update({ 
+            status: 'in_progress',
+            started_at: new Date().toISOString()
+          })
+          .eq('id', matchId);
+
+        lobby.matchStatus = 'in_progress';
+        
+        // Notify lobby that match is ready
         broadcastToLobby(matchId, {
-          type: 'match_ready'
+          type: 'match_ready',
+          status: 'in_progress'
         });
       }
       break;
-  }
-}
-
-async function checkMatchStatus(matchId: string) {
-  const lobby = lobbies.get(matchId);
-  if (!lobby) return;
-
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: match } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('id', matchId)
-      .single();
-
-    if (match && match.status !== lobby.matchStatus) {
-      lobby.matchStatus = match.status;
-      
-      broadcastToLobby(matchId, {
-        type: 'lobby_update',
-        status: match.status,
-        playerCount: lobby.players.size
-      });
-    }
-  } catch (error) {
-    console.error('Error checking match status:', error);
   }
 }
 
@@ -189,7 +177,7 @@ function broadcastToLobby(matchId: string, message: any) {
   if (!lobby) return;
 
   const messageStr = JSON.stringify(message);
-  console.log(`Broadcasting to lobby ${matchId}:`, message.type);
+  console.log(`Broadcasting to lobby ${matchId}:`, message.type, message);
   
   const playersCopy = new Map(lobby.players);
   

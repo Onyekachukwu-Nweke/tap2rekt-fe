@@ -1,22 +1,16 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { io, Socket } from "socket.io-client";
-
-interface WebSocketMessage {
-  type: string;
-  [key: string]: any;
-}
 
 interface BattleState {
   gameState: 'waiting' | 'countdown' | 'active' | 'finished';
   playerCount: number;
-  countdownTime: number;
-  gameTime: number;
   playerTaps: Record<string, number>;
-  scores?: Array<{ wallet: string; score: number }>;
+  gameTime: number;
+  countdownTime: number;
   winner?: string;
+  scores?: Array<{ wallet: string; score: number }>;
 }
 
 export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
@@ -24,233 +18,110 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
   const [battleState, setBattleState] = useState<BattleState>({
     gameState: 'waiting',
     playerCount: 0,
-    countdownTime: 0,
-    gameTime: 0,
-    playerTaps: {}
+    playerTaps: {},
+    gameTime: 30,
+    countdownTime: 3,
   });
   
   const socketRef = useRef<Socket | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout>();
-  const gameTimerRef = useRef<NodeJS.Timeout>();
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 3;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
-  const connect = useCallback(async () => {
-    if (socketRef.current && socketRef.current.connected) {
-      console.log('Socket.io already connected');
-      return;
-    }
-  
-    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      toast({
-        title: "Connection Failed",
-        description: "Unable to establish Socket.io connection",
-        variant: "destructive"
-      });
-      return;
-    }
-  
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-  
-      const socket = io(import.meta.env.VITE_WS_URL, {
-        transports: ["websocket"],
-        auth: { token },
-        query: { matchId, wallet: walletAddress }
-      });
-  
-      socketRef.current = socket;
-  
-      socket.on("connect", () => {
-        setIsConnected(true);
-        reconnectAttemptsRef.current = 0;
-        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-        socket.emit("join_match", { matchId, wallet: walletAddress });
-      });
-  
-      socket.on("update", (message: any) => {
-        handleMessage(message);
-      });
-  
-      socket.on("disconnect", (reason: string) => {
-        setIsConnected(false);
-        if (battleState.gameState !== 'finished' && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 5000);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        }
-      });
-  
-      socket.on("connect_error", (error: any) => {
-        setIsConnected(false);
-        toast({
-          title: "Connection Error",
-          description: error.message || "Socket.io connection error",
-          variant: "destructive"
-        });
-      });
-    } catch (error) {
+  const connect = useCallback(() => {
+    if (socketRef.current?.connected) return;
+
+    console.log(`Connecting to battle WebSocket for match ${matchId}`);
+    const socket = io(`${import.meta.env.VITE_WS_URL}/websocket-battle`, {
+      query: { matchId, wallet: walletAddress },
+      transports: ['websocket'],
+      forceNew: true
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Battle WebSocket connected');
+      setIsConnected(true);
+      
+      // Clear any reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Battle WebSocket disconnected');
       setIsConnected(false);
+      
+      // Auto-reconnect after 3 seconds if not manually disconnected
+      if (!reconnectTimeoutRef.current) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('Attempting to reconnect battle WebSocket...');
+          connect();
+        }, 3000);
+      }
+    });
+
+    socket.on('game_state_update', (data) => {
+      console.log('Battle game state update:', data);
+      setBattleState(prev => ({
+        ...prev,
+        gameState: data.state,
+        playerCount: data.playerCount || prev.playerCount,
+        gameTime: data.timeLeft || prev.gameTime,
+        countdownTime: data.timeLeft || prev.countdownTime,
+      }));
+    });
+
+    socket.on('tap_update', (data) => {
+      console.log('Tap update received:', data);
+      setBattleState(prev => ({
+        ...prev,
+        playerTaps: { ...prev.playerTaps, [data.wallet]: data.tapCount }
+      }));
+    });
+
+    socket.on('game_finished', (data) => {
+      console.log('Game finished:', data);
+      setBattleState(prev => ({
+        ...prev,
+        gameState: 'finished',
+        winner: data.winner,
+        scores: data.scores
+      }));
+    });
+
+    socket.on('error', (error) => {
+      console.error('Battle WebSocket error:', error);
       toast({
-        title: "Connection Error",
-        description: (error as Error).message || "Socket.io connection error",
+        title: "⚠️ Connection Error",
+        description: "Battle connection lost, attempting to reconnect...",
         variant: "destructive"
       });
-    }
-  }, [matchId, walletAddress]);
+    });
 
-  const handleMessage = (message: WebSocketMessage) => {
-    console.log('Received WebSocket message:', message);
+  }, [matchId, walletAddress, toast]);
 
-    switch (message.type) {
-      case 'player_joined':
-        setBattleState(prev => ({
-          ...prev,
-          playerCount: message.playerCount,
-          gameState: message.gameState || prev.gameState
-        }));
-        
-        if (message.wallet !== walletAddress) {
-          toast({
-            title: "🎮 Player Joined!",
-            description: "Battle starting soon...",
-          });
-        }
-        break;
+  useEffect(() => {
+    connect();
 
-      case 'countdown_start':
-        console.log('Countdown starting...');
-        startCountdownTimer(message.startTime, message.duration);
-        break;
-
-      case 'game_start':
-        console.log('Game starting...');
-        startGameTimer(message.startTime, message.duration);
-        break;
-
-      case 'tap_update':
-        setBattleState(prev => ({
-          ...prev,
-          playerTaps: {
-            ...prev.playerTaps,
-            [message.wallet]: message.taps
-          }
-        }));
-        break;
-
-      case 'game_end':
-        console.log('Game ended:', message);
-        setBattleState(prev => ({
-          ...prev,
-          gameState: 'finished',
-          scores: message.scores,
-          winner: message.winner
-        }));
-        
-        clearTimers();
-        
-        const isWinner = message.winner === walletAddress;
-        const finalScores = message.scores || [];
-        const scoreText = finalScores.map((s: any) => s.score).join(' vs ');
-        
-        toast({
-          title: isWinner ? "🎉 Victory!" : "💀 Defeat",
-          description: `Final scores: ${scoreText}`,
-        });
-        break;
-
-      case 'player_left':
-        setBattleState(prev => ({
-          ...prev,
-          playerCount: message.playerCount
-        }));
-        
-        toast({
-          title: "⚠️ Player Left",
-          description: "Opponent disconnected",
-          variant: "destructive"
-        });
-        break;
-
-      case 'error':
-        console.error('WebSocket error message:', message);
-        toast({
-          title: "Connection Error",
-          description: message.message || "WebSocket connection error",
-          variant: "destructive"
-        });
-        break;
-    }
-  };
-
-  const startCountdownTimer = (startTime: number, duration: number) => {
-    setBattleState(prev => ({ ...prev, gameState: 'countdown' }));
-    
-    countdownIntervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
-      
-      setBattleState(prev => ({ ...prev, countdownTime: remaining }));
-      
-      if (remaining <= 0) {
-        clearInterval(countdownIntervalRef.current);
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
-    }, 100);
-  };
-
-  const startGameTimer = (startTime: number, duration: number) => {
-    setBattleState(prev => ({ 
-      ...prev, 
-      gameState: 'active',
-      countdownTime: 0,
-      playerTaps: {}
-    }));
-    
-    gameTimerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
-      
-      setBattleState(prev => ({ ...prev, gameTime: remaining }));
-      
-      if (remaining <= 0) {
-        clearInterval(gameTimerRef.current);
-        sendMessage({ type: 'game_complete' });
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
-    }, 100);
-  };
+    };
+  }, [connect]);
 
-  const clearTimers = () => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-    if (gameTimerRef.current) {
-      clearInterval(gameTimerRef.current);
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-  };
-
-  const sendMessage = (message: any) => {
-    if (socketRef.current && socketRef.current.connected) {
-      if (message.type === "tap") {
-        socketRef.current.emit("tap", { matchId, wallet: walletAddress });
-      } else {
-        socketRef.current.emit(message.type, { ...message, matchId, wallet: walletAddress });
-      }
-    } else {
-      console.warn('Socket.io not connected, message not sent:', message);
-    }
-  };
-  
-  const sendTap = () => {
-    if (battleState.gameState === 'active' && isConnected) {
-      sendMessage({ type: 'tap' });
+  const sendTap = useCallback(() => {
+    if (socketRef.current && isConnected && battleState.gameState === 'active') {
+      console.log('Sending tap');
+      socketRef.current.emit('tap', { matchId, wallet: walletAddress });
+      
+      // Optimistically update local state
       setBattleState(prev => ({
         ...prev,
         playerTaps: {
@@ -259,23 +130,20 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
         }
       }));
     }
-  };
+  }, [isConnected, battleState.gameState, matchId, walletAddress]);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
+    console.log('Manually disconnecting battle WebSocket');
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
     if (socketRef.current) {
       socketRef.current.disconnect();
+      socketRef.current = null;
     }
     setIsConnected(false);
-    reconnectAttemptsRef.current = maxReconnectAttempts;
-  };
-
-  useEffect(() => {
-    connect();
-    
-    return () => {
-      disconnect();
-    };
-  }, [connect]);
+  }, []);
 
   return {
     isConnected,

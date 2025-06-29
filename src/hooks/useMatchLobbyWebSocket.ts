@@ -63,8 +63,13 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
       toast({ title: "💰 Deposit Confirmed!", description: `${msg.role} deposit received` });
     });
 
-    socket.on("match_ready", () => {
-      console.log('Match ready - both deposits confirmed!');
+    socket.on("match_ready", (msg) => {
+      console.log('Match ready - both deposits confirmed!', msg);
+      setLobbyState((prev) => ({
+        ...prev,
+        matchStatus: 'in_progress',
+        lastUpdate: Date.now()
+      }));
       toast({ title: "⚡ Match Ready!", description: "Both deposits confirmed - starting battle!" });
     });
 
@@ -80,10 +85,10 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
 
   const sendMessage = (type: string, payload: any) => {
     if (socketRef.current && socketRef.current.connected) {
-      console.log('Sending WebSocket message:', type, payload);
+      console.log('Sending lobby WebSocket message:', type, payload);
       socketRef.current.emit(type, payload);
     } else {
-      console.warn('WebSocket not connected, message not sent:', type, payload);
+      console.warn('Lobby WebSocket not connected, message not sent:', type, payload);
     }
   };
 
