@@ -78,7 +78,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
           break;
           
         case 'countdown_start':
-          setBattleState(prev => ({
+          { setBattleState(prev => ({
             ...prev,
             gameState: 'countdown',
             countdownTime: 3
@@ -95,10 +95,10 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
               return { ...prev, countdownTime: newTime };
             });
           }, 1000);
-          break;
+          break; }
           
         case 'game_start':
-          setBattleState(prev => ({
+          { setBattleState(prev => ({
             ...prev,
             gameState: 'active',
             gameTime: 30
@@ -115,7 +115,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
               return { ...prev, gameTime: newTime };
             });
           }, 1000);
-          break;
+          break; }
           
         case 'tap_update':
           setBattleState(prev => ({

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +6,7 @@ interface LobbyState {
   playerCount: number;
   deposits: { creator: boolean; opponent: boolean };
   matchStatus: string;
+  matchId?: string; // Add this to track when match is ready
   lastUpdate: number;
 }
 
@@ -63,14 +63,19 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
       toast({ title: "💰 Deposit Confirmed!", description: `${msg.role} deposit received` });
     });
 
+    // CRITICAL FIX: Handle match_ready event properly
     socket.on("match_ready", (msg) => {
       console.log('Match ready - both deposits confirmed!', msg);
       setLobbyState((prev) => ({
         ...prev,
-        matchStatus: 'in_progress',
+        matchStatus: 'match_ready', // Change status to indicate match is ready
+        matchId: msg.matchId, // Store the match ID
         lastUpdate: Date.now()
       }));
-      toast({ title: "⚡ Match Ready!", description: "Both deposits confirmed - starting battle!" });
+      toast({ 
+        title: "⚡ Match Ready!", 
+        description: "Both deposits confirmed - battle starting soon!" 
+      });
     });
 
     socket.on("disconnect", () => {
@@ -92,5 +97,14 @@ export const useMatchLobbyWebSocket = (lobbyId: string, wallet: string, role: "c
     }
   };
 
-  return { isConnected, lobbyState, sendMessage };
+  const notifyDeposit = () => {
+    sendMessage("deposit_made", { lobbyId, wallet });
+  };
+
+  return { 
+    isConnected, 
+    lobbyState, 
+    sendMessage, 
+    notifyDeposit 
+  };
 };
