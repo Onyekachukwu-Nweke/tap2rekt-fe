@@ -31,8 +31,7 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
     if (socketRef.current?.connected) return;
 
     console.log(`Connecting to battle WebSocket for match ${matchId}`);
-    const socket = io(`${import.meta.env.VITE_WS_URL}/websocket-battle`, {
-      query: { matchId, wallet: walletAddress },
+    const socket = io(import.meta.env.VITE_WS_URL, {
       transports: ['websocket'],
       forceNew: true
     });
@@ -42,6 +41,9 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
     socket.on('connect', () => {
       console.log('Battle WebSocket connected');
       setIsConnected(true);
+      
+      // Join the match room
+      socket.emit('join_match', { matchId, wallet: walletAddress });
       
       // Clear any reconnect timeout
       if (reconnectTimeoutRef.current) {
@@ -63,33 +65,74 @@ export const useWebSocketBattle = (matchId: string, walletAddress: string) => {
       }
     });
 
-    socket.on('game_state_update', (data) => {
-      console.log('Battle game state update:', data);
-      setBattleState(prev => ({
-        ...prev,
-        gameState: data.state,
-        playerCount: data.playerCount || prev.playerCount,
-        gameTime: data.timeLeft || prev.gameTime,
-        countdownTime: data.timeLeft || prev.countdownTime,
-      }));
-    });
-
-    socket.on('tap_update', (data) => {
-      console.log('Tap update received:', data);
-      setBattleState(prev => ({
-        ...prev,
-        playerTaps: { ...prev.playerTaps, [data.wallet]: data.tapCount }
-      }));
-    });
-
-    socket.on('game_finished', (data) => {
-      console.log('Game finished:', data);
-      setBattleState(prev => ({
-        ...prev,
-        gameState: 'finished',
-        winner: data.winner,
-        scores: data.scores
-      }));
+    // Listen for unified 'update' events from your server
+    socket.on('update', (data) => {
+      console.log('Battle update received:', data);
+      
+      switch (data.type) {
+        case 'player_joined':
+          setBattleState(prev => ({
+            ...prev,
+            playerCount: data.playerCount
+          }));
+          break;
+          
+        case 'countdown_start':
+          setBattleState(prev => ({
+            ...prev,
+            gameState: 'countdown',
+            countdownTime: 3
+          }));
+          
+          // Handle countdown timer
+          const countdownInterval = setInterval(() => {
+            setBattleState(prev => {
+              const newTime = prev.countdownTime - 1;
+              if (newTime <= 0) {
+                clearInterval(countdownInterval);
+                return { ...prev, countdownTime: 0 };
+              }
+              return { ...prev, countdownTime: newTime };
+            });
+          }, 1000);
+          break;
+          
+        case 'game_start':
+          setBattleState(prev => ({
+            ...prev,
+            gameState: 'active',
+            gameTime: 30
+          }));
+          
+          // Handle game timer
+          const gameInterval = setInterval(() => {
+            setBattleState(prev => {
+              const newTime = prev.gameTime - 1;
+              if (newTime <= 0) {
+                clearInterval(gameInterval);
+                return { ...prev, gameTime: 0 };
+              }
+              return { ...prev, gameTime: newTime };
+            });
+          }, 1000);
+          break;
+          
+        case 'tap_update':
+          setBattleState(prev => ({
+            ...prev,
+            playerTaps: { ...prev.playerTaps, [data.wallet]: data.taps }
+          }));
+          break;
+          
+        case 'game_end':
+          setBattleState(prev => ({
+            ...prev,
+            gameState: 'finished',
+            winner: data.winner,
+            scores: data.scores
+          }));
+          break;
+      }
     });
 
     socket.on('error', (error) => {
