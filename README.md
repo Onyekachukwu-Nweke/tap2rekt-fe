@@ -1,10 +1,6 @@
 # 🎯 Tap2Rekt – Gorbagana Testnet Battle Arena
 
-[![Tap 2 Rekt](https://img.shields.io/badge/Tap2Rekt-Live-brightgreen)](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6)  
-[![Gorbagana](https://img.shields.io/badge/Gorbagana-Testnet-orange)](https://rpc.gorbagana.wtf)  
-[![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org)  
-[![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://typescriptlang.org)  
-[![Supabase](https://img.shields.io/badge/Supabase-Backend-green)](https://supabase.com)
+[![Tap 2 Rekt](https://img.shields.io/badge/Tap2Rekt-Live-brightgreen)](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6) [![Gorbagana](https://img.shields.io/badge/Gorbagana-Testnet-orange)](https://rpc.gorbagana.wtf) [![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://typescriptlang.org) [![Supabase](https://img.shields.io/badge/Supabase-Backend-green)](https://supabase.com)
 
 > 🚀 **Fast taps, faster transactions** — a 1v1 real-time tap battle game powered by the Gorbagana blockchain.
 
@@ -52,9 +48,9 @@
 
 ## 🚀 Live Demo
 
-> 🔗 **Demo URLs:**  
-> Game Link: https://tap2rekt.onrender.com
-> Game Demo: https://www.loom.com/share/df2755b9a7ec4d4fb5fa14069f4983d5?sid=e6d1c6b0-c138-4ff4-9904-94253dff4b3d
+> 🔗 **Demo URLs:**  <br>
+> Game Link: https://tap2rekt.onrender.com <br>
+> Game Demo: https://www.loom.com/share/df2755b9a7ec4d4fb5fa14069f4983d5?sid=e6d1c6b0-c138-4ff4-9904-94253dff4b3d <br>
 
 ---
 
@@ -193,9 +189,3 @@ npm run build
 # Preview production build
 npm run preview
 ```
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
