@@ -1,50 +1,45 @@
+# 🎯 Tap2Rekt – Gorbagana Testnet Battle Arena
 
-# 🎯 Tap 2 Rekt - Gorbagana Testnet Battle Arena
-
-[![Tap 2 Rekt](https://img.shields.io/badge/Tap%202%20Rekt-Live-brightgreen)](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6)
-[![Gorbagana](https://img.shields.io/badge/Gorbagana-Testnet-orange)](https://rpc.gorbagana.wtf)
-[![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://typescriptlang.org)
+[![Tap 2 Rekt](https://img.shields.io/badge/Tap2Rekt-Live-brightgreen)](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6)  
+[![Gorbagana](https://img.shields.io/badge/Gorbagana-Testnet-orange)](https://rpc.gorbagana.wtf)  
+[![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org)  
+[![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://typescriptlang.org)  
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-green)](https://supabase.com)
 
-> 🚀 **Fast taps, faster transactions** - The ultimate 1v1 speed battle arena powered by Gorbagana blockchain technology
+> 🚀 **Fast taps, faster transactions** — a 1v1 real-time tap battle game powered by the Gorbagana blockchain.
+
+---
 
 ## 🎮 Game Overview
 
-**Tap 2 Rekt** is a high-energy, real-time tap battle game where players compete in lightning-fast 1v1 matches for GOR tokens. Built on the Gorbagana testnet, it combines the excitement of competitive gaming with blockchain-powered wagering and instant rewards.
+**Tap2Rekt** is a real-time multiplayer tap battle game where two players compete in a 30-second speed tap showdown. Powered by the **Gorbagana testnet**, Tap2Rekt integrates token wagering and real-time match outcomes with a clean Web3 experience.
 
-### ⚡ Core Gameplay
-- **Real-time 1v1 battles**: Face off against opponents in 30-second tap marathons
-- **Winner takes all**: Fastest tapper claims both wagers
-- **Instant rewards**: Automatic token distribution to winners
-- **Practice mode**: Hone your skills before entering wager battles
-- **Live leaderboards**: Track your performance and climb the ranks
+### 🔥 Core Mechanics
+- 1v1 tap battles in real-time
+- Wager GOR tokens
+- Winner takes all
+- Live score tracking and leaderboard
+- Practice mode available for warmups
 
-### 🏆 Key Features
-- **WebSocket-powered real-time gameplay** with sub-second latency
-- **Secure wagering system** with escrow functionality
-- **Comprehensive statistics tracking** (battles fought, victories, best scores)
-- **Mobile-responsive design** for gaming on any device
-- **Practice mode** for skill development
-- **Global leaderboards** with top player rankings
+---
 
 ## 🌐 Gorbagana Integration
 
-### 💰 GOR Token Economy
+## 💰 GOR Token Economy
 **Tap 2 Rekt** leverages the Gorbagana blockchain for seamless gaming experiences:
 
 - **Native GOR tokens**: All wagers and rewards are in GOR (1 GOR = 1 SOL equivalent)
 - **Instant transactions**: Sub-second transaction confirmations
 - **Low fees**: Minimal transaction costs for gaming
-- **Secure escrow**: Smart contract-based wager management
+- **Secure escrow**: Wager management
 
-### 🔐 Wallet Integration
-Supports multiple Solana-compatible wallets:
-- **Phantom Wallet**
-- **Solflare**
-- **Backpack**
-- **Coin98**
-- **And more via Solana Wallet Adapter**
+### ✅ Wallet Support
+> ✅ **Only Backpack wallet is supported** for Gorbagana testnet access.
+
+**Connection Steps:**
+1. Install the [Backpack Wallet](https://backpack.app) browser extension.
+2. Set your Solana RPC to `https://rpc.gorbagana.wtf`.
+3. Use the [Gorbagana faucet](https://faucet.gorbagana.wtf) to get testnet GOR tokens.
 
 ### 🏦 Transaction Flow
 1. **Deposit**: Players deposit GOR tokens into secure escrow
@@ -52,31 +47,33 @@ Supports multiple Solana-compatible wallets:
 3. **Settlement**: Automatic winner determination and prize distribution
 4. **Claim**: Instant token transfer to winner's wallet
 
-## 🚀 Quick Start
 
-### 🌐 Live Demo
-**Play Now**: [Tap 2 Rekt Live](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6)
+---
 
-### 🎮 How to Play
-1. **Connect Wallet**: Use any Solana-compatible wallet
-2. **Get Test GOR**: Visit the [Gorbagana Faucet](https://faucet.gorbagana.wtf) for test tokens
-3. **Create/Join Battle**: Set your wager and find an opponent
-4. **Tap to Win**: Outpace your opponent in 30 seconds
-5. **Claim Rewards**: Winners automatically receive both wagers
+## 🚀 Live Demo
+
+> 🔗 **Demo URLs:**  
+> Game Link: https://tap2rekt.onrender.com
+> Game Demo: https://www.loom.com/share/df2755b9a7ec4d4fb5fa14069f4983d5?sid=e6d1c6b0-c138-4ff4-9904-94253dff4b3d
+
+---
 
 ## 🛠️ Local Development
 
-### Prerequisites
-- **Node.js** 18+ and npm
-- **Git** for version control
-- **Solana wallet** (Phantom recommended)
-- **Supabase account** (for backend services)
+### 🧩 Prerequisites
+- Node.js 18+
+- npm
+- Git
+- Supabase project (for backend)
+- Backpack Wallet installed
+- Gorbagana RPC endpoint
+- WebSocket server
 
-### Installation
+### ⚙️ Setup Instructions
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/tap2rekt-fe.git
+git clone https://github.com/Onyekachukwu-Nweke/tap2rekt-fe.git
 cd tap2rekt-fe
 
 # Install dependencies
@@ -86,38 +83,34 @@ npm install
 npm run dev
 ```
 
-### Environment Setup
+### 🧪 Environment Configuration
 
-Create a `.env.local` file with your Supabase configuration:
+Create a `.env` file in the root with the following:
 
 ```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_WS_URL=wss://tap2rekt-wss.onrender.com
+VITE_SUPABASE_URL=https://your-supabase-url.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 VITE_RPC_ENDPOINT=https://rpc.gorbagana.wtf
+VITE_VAULT_PRIVATE_KEY=your_vault_private_key
 ```
 
-### 🗄️ Database Schema
+---
 
-The application uses Supabase with the following core tables:
+## 🧱 Architecture Overview
 
-- **`matches`**: Battle records with wager amounts and status
-- **`tap_results`**: Individual game scores and timestamps  
-- **`player_stats`**: Aggregated player performance metrics
+### Frontend
 
-## 🏗️ Technical Architecture
+* **React 18** + **Vite** + **TypeScript**
+* **Tailwind CSS** + **shadcn/ui**
+* **Solana Wallet Adapter** (Backpack only)
+* **Socket.IO** for real-time gameplay
 
-### Frontend Stack
-- **React 18** with TypeScript for type safety
-- **Vite** for lightning-fast development
-- **Tailwind CSS** + **shadcn/ui** for modern styling
-- **Solana Wallet Adapter** for blockchain integration
-- **Socket.io** for real-time WebSocket connections
+### Backend
 
-### Backend Services
-- **Supabase** for database and real-time subscriptions
-- **Edge Functions** for secure transaction processing
-- **Row Level Security** for data protection
-- **WebSocket servers** for battle coordination
+* **Supabase** for database and subscriptions
+* **Supabase Edge Functions** for secure match logic
+* **RLS** for permissioned access
 
 ### Real-time Features
 - **Live tap counting** with optimistic updates
@@ -125,7 +118,21 @@ The application uses Supabase with the following core tables:
 - **Instant match updates** through Supabase subscriptions
 - **Live leaderboard** with automatic refreshing
 
-## 📁 Project Structure
+---
+
+## 🧩 Game Flow
+
+1. **Connect your Backpack wallet**
+2. **Get GOR tokens** from [faucet](https://faucet.gorbagana.wtf)
+3. **Join or create a match**
+4. **Tokens are escrowed**
+5. **30-second tap battle begins**
+6. **Winner is automatically determined**
+7. **Winnings are transferred instantly**
+
+---
+
+## 📦 Project Structure
 
 ```
 src/
@@ -146,6 +153,8 @@ supabase/
 ├── migrations/          # Database migrations
 └── config.toml         # Supabase configuration
 ```
+
+---
 
 ## 🎯 Game Mechanics
 
@@ -170,10 +179,12 @@ supabase/
 - **Wallet verification**: Cryptographic signature validation
 - **RLS policies**: Database-level access control
 
-## 🚦 Testing
+---
+
+## 🧪 Testing
 
 ```bash
-# Run development server
+# Run local dev server
 npm run dev
 
 # Build for production
@@ -183,38 +194,8 @@ npm run build
 npm run preview
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🎮 Community
-
-- **Discord**: [Join our gaming community](https://discord.gg/tap2rekt)
-- **Twitter**: [@Tap2Rekt](https://twitter.com/tap2rekt)
-- **GitHub**: [Report issues and contribute](https://github.com/your-username/tap2rekt-fe)
-
-## 🏅 Leaderboard Champions
-
-Check out our top players and their incredible achievements in the live application!
-
----
-
-<div align="center">
-
-**🎯 Ready to prove your tapping supremacy? 🎯**
-
-[**PLAY TAP 2 REKT NOW**](https://lovable.dev/projects/405a68f8-1239-4702-bc7e-aad0cfac3eb6)
-
-*Fast taps, faster transactions - powered by Gorbagana 💎*
-
-</div>
+This project is licensed under the MIT License.
